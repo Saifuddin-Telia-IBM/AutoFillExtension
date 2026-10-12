@@ -15,7 +15,10 @@
 const $ = id => document.getElementById(id);
 
 let currentUrl    = '';
-let activePattern = '';
+// Patterns added in this popup session (shown even if still empty / not matching)
+const pinnedPatterns = new Set();
+// Pattern that the inline "new profile" form will add to
+let newProfilePattern = '';
 
 // -------------------------------------------------------------------------
 // Helpers
@@ -44,7 +47,7 @@ async function sendToPage(msg) {
 }
 
 // -------------------------------------------------------------------------
-// Render all profiles for the active pattern
+// Render every pattern in the current page's group, each with its profiles
 // -------------------------------------------------------------------------
 
 async function renderProfiles() {
@@ -52,21 +55,63 @@ async function renderProfiles() {
   const emptyState = $('empty-state');
   container.innerHTML = '';
 
-  const data = await getPatternData(activePattern);
-  const profiles = data.profiles || [];
+  const all = await getAllRules();
+  const keys = new Set(await getMatchingPatterns(currentUrl));
+  for (const p of pinnedPatterns) if (all[p]) keys.add(p);
 
-  if (profiles.length === 0) {
+  // Exact match for the current page first, then the rest in stored order
+  const ordered = [...keys].sort((a, b) => (b === currentUrl) - (a === currentUrl));
+
+  if (ordered.length === 0) {
     emptyState.classList.remove('hidden');
     return;
   }
   emptyState.classList.add('hidden');
 
-  for (const profile of profiles) {
-    container.appendChild(buildProfileBlock(profile));
+  for (const pattern of ordered) {
+    container.appendChild(buildPatternGroup(pattern, all[pattern].profiles || []));
   }
 }
 
-function buildProfileBlock(profile) {
+function buildPatternGroup(pattern, profiles) {
+  const group = document.createElement('div');
+  group.className = 'pattern-group';
+
+  const header = document.createElement('div');
+  header.className = 'pattern-group-header';
+
+  const urlSpan = document.createElement('span');
+  urlSpan.className = 'url-text';
+  urlSpan.textContent = pattern;
+  urlSpan.title = pattern;
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'btn-small btn-primary';
+  addBtn.textContent = '+ Profile';
+  addBtn.title = 'Add a profile to this URL';
+  addBtn.addEventListener('click', () => {
+    newProfilePattern = pattern;
+    $('new-profile-form').classList.remove('hidden');
+    $('new-profile-name').focus();
+  });
+
+  header.appendChild(urlSpan);
+  header.appendChild(addBtn);
+  group.appendChild(header);
+
+  if (profiles.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'pattern-group-empty';
+    empty.textContent = 'No profiles yet.';
+    group.appendChild(empty);
+  }
+  for (const profile of profiles) {
+    group.appendChild(buildProfileBlock(pattern, profile));
+  }
+  return group;
+}
+
+function buildProfileBlock(pattern, profile) {
   const block = document.createElement('div');
   block.className = 'profile-block';
   block.dataset.profileId = profile.id;
@@ -80,7 +125,7 @@ function buildProfileBlock(profile) {
   nameSpan.textContent = profile.name;
   // Double-click to rename
   nameSpan.title = 'Double-click or use ✎ to rename';
-  nameSpan.addEventListener('dblclick', () => startRename(nameSpan, profile));
+  nameSpan.addEventListener('dblclick', () => startRename(pattern, nameSpan, profile));
 
   const actions = document.createElement('div');
   actions.className = 'profile-actions';
@@ -90,7 +135,7 @@ function buildProfileBlock(profile) {
   renameBtn.className = 'btn-rename-profile';
   renameBtn.title = 'Rename this profile';
   renameBtn.textContent = '✎';
-  renameBtn.addEventListener('click', () => startRename(nameSpan, profile));
+  renameBtn.addEventListener('click', () => startRename(pattern, nameSpan, profile));
 
   // Fill Now button
   const fillBtn = document.createElement('button');
@@ -111,7 +156,7 @@ function buildProfileBlock(profile) {
   deleteProfileBtn.textContent = '✕';
   deleteProfileBtn.addEventListener('click', async () => {
     if (!confirm(`Delete profile "${profile.name}"?`)) return;
-    await deleteProfile(activePattern, profile.id);
+    await deleteProfile(pattern, profile.id);
     await renderProfiles();
   });
 
@@ -127,7 +172,7 @@ function buildProfileBlock(profile) {
   rulesDiv.className = 'profile-rules';
 
   for (const rule of (profile.rules || [])) {
-    rulesDiv.appendChild(buildRuleItem(profile, rule));
+    rulesDiv.appendChild(buildRuleItem(pattern, profile, rule));
   }
 
   // Add Rule button
@@ -136,7 +181,7 @@ function buildProfileBlock(profile) {
   const addBtn = document.createElement('button');
   addBtn.className = 'btn-small btn-primary';
   addBtn.textContent = '+ Add Rule';
-  addBtn.addEventListener('click', () => openRuleForm(profile.id, null));
+  addBtn.addEventListener('click', () => openRuleForm(pattern, profile.id, null));
   addRow.appendChild(addBtn);
   rulesDiv.appendChild(addRow);
 
@@ -144,7 +189,7 @@ function buildProfileBlock(profile) {
   return block;
 }
 
-function buildRuleItem(profile, rule) {
+function buildRuleItem(pattern, profile, rule) {
   const item = document.createElement('div');
   item.className = 'rule-item';
   item.dataset.ruleId = rule.id;
@@ -195,7 +240,7 @@ function buildRuleItem(profile, rule) {
   toggleInput.type = 'checkbox';
   toggleInput.checked = rule.enabled;
   toggleInput.addEventListener('change', async e => {
-    await updateRule(activePattern, profile.id, rule.id, { enabled: e.target.checked });
+    await updateRule(pattern, profile.id, rule.id, { enabled: e.target.checked });
   });
 
   const toggleSlider = document.createElement('span');
@@ -207,7 +252,7 @@ function buildRuleItem(profile, rule) {
   editBtn.className = 'btn-edit';
   editBtn.title = 'Edit';
   editBtn.textContent = '✎';
-  editBtn.addEventListener('click', () => openRuleForm(profile.id, rule));
+  editBtn.addEventListener('click', () => openRuleForm(pattern, profile.id, rule));
 
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'btn-danger';
@@ -215,7 +260,7 @@ function buildRuleItem(profile, rule) {
   deleteBtn.textContent = '✕';
   deleteBtn.addEventListener('click', async () => {
     if (!confirm('Delete this rule?')) return;
-    await deleteRule(activePattern, profile.id, rule.id);
+    await deleteRule(pattern, profile.id, rule.id);
     await renderProfiles();
   });
 
@@ -232,7 +277,7 @@ function buildRuleItem(profile, rule) {
 // Inline rename of profile name
 // -------------------------------------------------------------------------
 
-function startRename(nameSpan, profile) {
+function startRename(pattern, nameSpan, profile) {
   const input = document.createElement('input');
   input.type = 'text';
   input.value = profile.name;
@@ -243,7 +288,7 @@ function startRename(nameSpan, profile) {
 
   async function commit() {
     const newName = input.value.trim() || profile.name;
-    await renameProfile(activePattern, profile.id, newName);
+    await renameProfile(pattern, profile.id, newName);
     await renderProfiles();
   }
   input.addEventListener('blur', commit);
@@ -264,8 +309,9 @@ function updateValueField(type) {
   $('label-value').textContent = isCheckbox ? 'State' : 'Value';
 }
 
-function openRuleForm(profileId, rule) {
+function openRuleForm(pattern, profileId, rule) {
   $('form-title').textContent = rule ? 'Edit Rule' : 'Add Rule';
+  $('edit-pattern').value    = pattern;
   $('edit-rule-id').value   = rule ? rule.id : '';
   $('edit-profile-id').value = profileId;
   $('field-selector').value  = rule ? rule.selector : '';
@@ -302,11 +348,12 @@ async function saveRuleForm() {
   const label = $('field-label').value.trim();
   const ruleId = $('edit-rule-id').value;
   const profileId = $('edit-profile-id').value;
+  const pattern = $('edit-pattern').value;
 
   if (ruleId) {
-    await updateRule(activePattern, profileId, ruleId, { selector, type, value, label });
+    await updateRule(pattern, profileId, ruleId, { selector, type, value, label });
   } else {
-    await addRule(activePattern, profileId, { selector, type, value, label });
+    await addRule(pattern, profileId, { selector, type, value, label });
   }
   closeRuleForm();
   await renderProfiles();
@@ -324,12 +371,11 @@ function showPatternForm(prefill = '') {
   $('pattern-input').value = prefill;
 }
 
-async function showProfilesSection(pattern) {
-  activePattern = pattern;
+async function showProfilesSection() {
   $('pattern-form').classList.add('hidden');
   $('profiles-section').classList.remove('hidden');
   $('pattern-bar').classList.remove('hidden');
-  $('active-pattern').textContent = pattern;
+  $('active-pattern').textContent = baseUrlOf(currentUrl);
   await renderProfiles();
 }
 
@@ -343,10 +389,10 @@ async function init() {
   $('current-url').textContent = currentUrl;
   $('current-url').title = currentUrl;
 
-  const matchingPatterns = await getMatchingPatterns(currentUrl);
+  const matching = await getMatchingPatterns(currentUrl);
 
-  if (matchingPatterns.length > 0) {
-    await showProfilesSection(matchingPatterns[0]);
+  if (matching.length > 0) {
+    await showProfilesSection();
   } else {
     showPatternForm(currentUrl);
   }
@@ -356,23 +402,20 @@ async function init() {
     const pattern = $('pattern-input').value.trim();
     if (!pattern) return;
     await ensurePattern(pattern);
-    await showProfilesSection(pattern);
+    pinnedPatterns.add(pattern);
+    await showProfilesSection();
   });
   $('pattern-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') $('btn-save-pattern').click();
   });
 
-  // Change pattern
-  $('btn-change-pattern').addEventListener('click', () => showPatternForm(activePattern));
+  // Add another URL pattern to this site's group
+  $('btn-change-pattern').addEventListener('click', () => showPatternForm(currentUrl));
 
-  // New profile
-  $('btn-add-profile').addEventListener('click', () => {
-    $('new-profile-form').classList.remove('hidden');
-    $('new-profile-name').focus();
-  });
+  // New profile (target pattern is set by the per-URL "+ Profile" button)
   $('btn-save-new-profile').addEventListener('click', async () => {
     const name = $('new-profile-name').value.trim() || 'New Profile';
-    await addProfile(activePattern, name);
+    await addProfile(newProfilePattern, name);
     $('new-profile-name').value = '';
     $('new-profile-form').classList.add('hidden');
     await renderProfiles();

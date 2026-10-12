@@ -48,7 +48,18 @@ function stripHash(url) {
   }
 }
 
+/** Base URL = URL without hash (and without a trailing wildcard). Used to group patterns. */
+function baseUrlOf(url) {
+  const clean = stripHash(url);
+  return clean.endsWith('*') ? clean.slice(0, -1) : clean;
+}
+
 function patternMatches(urlPattern, url) {
+  // Pattern targets a specific hash route (SPA): compare against the full URL, hash included.
+  if (urlPattern.includes('#')) {
+    if (urlPattern === url) return true;
+    return urlPattern.endsWith('*') && url.startsWith(urlPattern.slice(0, -1));
+  }
   const cleanUrl = stripHash(url);
   if (urlPattern === cleanUrl) return true;
   if (urlPattern.endsWith('*')) {

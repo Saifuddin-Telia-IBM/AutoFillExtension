@@ -17,9 +17,9 @@
   </div>
 
   <div id="pattern-bar" class="hidden">
-    <span class="label">Pattern:</span>
+    <span class="label">Site:</span>
     <span id="active-pattern" class="url-text"></span>
-    <button id="btn-change-pattern" class="btn-icon" title="Change URL pattern">✎</button>
+    <button id="btn-change-pattern" class="btn-icon" title="Add another URL pattern">＋</button>
   </div>
 
   <!-- Pattern setup form (shown when no pattern exists yet) -->
@@ -36,7 +36,6 @@
   <div id="profiles-section" class="hidden">
     <div class="section-header">
       <span>Profiles</span>
-      <button id="btn-add-profile" class="btn-small btn-primary">+ New Profile</button>
     </div>
 
     <!-- New profile name form -->
@@ -62,6 +61,7 @@
     <h2 id="form-title">Add Rule</h2>
     <input type="hidden" id="edit-rule-id" />
     <input type="hidden" id="edit-profile-id" />
+    <input type="hidden" id="edit-pattern" />
 
     <label for="field-selector">CSS Selector <span class="required">*</span></label>
     <input type="text" id="field-selector" placeholder='e.g. #password or input[name="ssid"]' />

@@ -75,6 +75,18 @@ header h1 { font-size: 15px; font-weight: 600; color: #1e3a5f; }
 }
 .row-actions.tight { gap: 4px; margin-top: 6px; }
 
+/* ---- Pattern (full URL) group ---- */
+.pattern-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #eef1f5;
+  border-top: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+}
+.pattern-group-empty { padding: 8px 12px; font-size: 11px; color: #57606a; }
+
 /* ---- Profile accordion ---- */
 .profile-block {
   border-bottom: 1px solid #e5e7eb;

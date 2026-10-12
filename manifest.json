@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "AutoFill",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Automatically fill form fields (text, checkbox, radio, select) on page load for URLs you configure.",
   "author": "AutoFill Extension",
   "icons": {
