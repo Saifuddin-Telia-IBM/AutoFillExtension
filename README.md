@@ -42,7 +42,18 @@ Each build copies `background/`, `content/`, `popup/`, `options/`, `shared/` and
 | `npm run package:chrome` | `dist/packages/autofill-chrome-<version>.zip` |
 | `npm run package` | both of the above |
 
-Each `package:*` command runs the matching `build:*` first, then zips the folder with `web-ext build`. The version comes from the manifest.
+Each `package:*` command runs the matching `build:*` first, then zips the folder with `web-ext build`. The version in the filename comes from the manifest, so zips from different versions never overwrite each other (rebuilding the same version does overwrite).
+
+**Building a different version without editing the manifests:** set `EXT_VERSION` for the command. It changes the version only in the generated `dist/` output; `manifest.json` and `manifest.chrome.json` are left as they are.
+
+```bash
+EXT_VERSION=1.0.1 npm run package            # both browsers
+EXT_VERSION=1.0.1 npm run package:firefox    # Firefox only
+EXT_VERSION=1.0.1 npm run package:chrome     # Chrome only
+EXT_VERSION=1.0.1 npm run build              # unpacked builds only
+```
+
+The value must be 1–4 dot-separated integers (for example `1.0.1` or `2.1`), as both browsers require. This produces `dist/packages/autofill-firefox-1.0.1.zip` and `autofill-chrome-1.0.1.zip` next to the existing 1.0.0 zips.
 
 - The **Firefox** zip can be installed directly via `about:addons` → gear icon → **Install Add-on From File…** (unsigned installs need Developer Edition / Nightly with `xpinstall.signatures.required = false`; see below), or uploaded to AMO for signing.
 - The **Chrome** zip is what you upload to the [Chrome Web Store developer dashboard](https://chrome.google.com/webstore/devconsole). Chrome does not install a loose zip directly; for local use, unzip it or load `dist/chrome` as an unpacked extension.
@@ -130,7 +141,7 @@ Follow the [official AMO upload guide](https://extensionworkshop.com/documentati
 
 ## Publishing the Chrome Build
 
-Run `npm run package:chrome` and upload `dist/packages/autofill-chrome-<version>.zip` in the Chrome Web Store developer dashboard. Bump `version` in both `manifest.json` and `manifest.chrome.json` for each release.
+Run `npm run package:chrome` and upload `dist/packages/autofill-chrome-<version>.zip` in the Chrome Web Store developer dashboard. Each upload needs a higher version than the last: either use `EXT_VERSION=<new version>` (see [Building](#building)), or bump `version` in both `manifest.json` and `manifest.chrome.json` to make it permanent.
 
 ---
 
@@ -148,6 +159,15 @@ Run `npm run package:chrome` and upload `dist/packages/autofill-chrome-<version>
    - **Value** — what to fill in
    - **Label** — optional friendly name
 6. Click **Save**. The rule takes effect immediately on the next page load.
+
+### Renaming a profile
+
+Each URL pattern can hold several named profiles. To rename one:
+
+- **Popup:** click the **✎** button in the profile's header (or double-click the name).
+- **Options page:** click **✎ Rename** on the profile (or double-click the name).
+
+Type the new name, then press **Enter** or click away to save. Press **Esc** to cancel. An empty name keeps the old one.
 
 ### Finding a CSS selector
 
@@ -172,6 +192,7 @@ Click **"Manage all rules →"** in the popup, or go to `about:addons` → AutoF
 The Options page lets you:
 - View all URL patterns and their rules
 - Add, edit, toggle, and delete rules
+- Rename profiles
 - Delete an entire URL pattern
 - **Export** all rules to a JSON file
 - **Import** rules from a JSON file (merge or replace)

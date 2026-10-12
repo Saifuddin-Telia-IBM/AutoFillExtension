@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "AutoFill",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Automatically fill form fields (text, checkbox, radio, select) on page load for URLs you configure.",
   "author": "AutoFill Extension",
   "icons": {
@@ -14,13 +14,20 @@
     "<all_urls>"
   ],
   "background": {
-    "scripts": ["background/background.js"],
+    "scripts": [
+      "background/background.js"
+    ],
     "persistent": false
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["shared/browser-polyfill.js", "content/autofill.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "shared/browser-polyfill.js",
+        "content/autofill.js"
+      ],
       "run_at": "document_idle"
     }
   ],
@@ -41,7 +48,9 @@
       "id": "autofill@extension",
       "strict_min_version": "140.0",
       "data_collection_permissions": {
-        "required": ["none"],
+        "required": [
+          "none"
+        ],
         "optional": []
       }
     }

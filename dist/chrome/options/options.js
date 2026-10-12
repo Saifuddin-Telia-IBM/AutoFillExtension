@@ -111,7 +111,7 @@ function buildProfileSection(pattern, profile) {
   nameSpan.className = 'profile-section-name';
   nameSpan.textContent = profile.name;
   nameSpan.title = 'Double-click to rename';
-  nameSpan.addEventListener('dblclick', () => {
+  const startRename = () => {
     const input = document.createElement('input');
     input.type = 'text';
     input.value = profile.name;
@@ -128,10 +128,16 @@ function buildProfileSection(pattern, profile) {
       if (e.key === 'Enter') { e.preventDefault(); commit(); }
       if (e.key === 'Escape') { input.value = profile.name; commit(); }
     });
-  });
+  };
+  nameSpan.addEventListener('dblclick', startRename);
 
   const profileActions = document.createElement('div');
   profileActions.className = 'profile-section-actions';
+
+  const renameBtn = document.createElement('button');
+  renameBtn.className = 'btn-ghost btn-sm';
+  renameBtn.textContent = '✎ Rename';
+  renameBtn.addEventListener('click', startRename);
 
   const addRuleBtn = document.createElement('button');
   addRuleBtn.className = 'btn-primary btn-sm';
@@ -147,6 +153,7 @@ function buildProfileSection(pattern, profile) {
     await renderAll();
   });
 
+  profileActions.appendChild(renameBtn);
   profileActions.appendChild(addRuleBtn);
   profileActions.appendChild(deleteProfileBtn);
   header.appendChild(nameSpan);

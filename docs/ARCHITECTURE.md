@@ -62,6 +62,7 @@ AutoFillExtension/
 ### `scripts/build.js`
 - `node scripts/build.js <firefox|chrome|all>` (wrapped by `npm run build:firefox`, `build:chrome`, `build`)
 - Copies `background/`, `content/`, `popup/`, `options/`, `shared/`, `icons/` to `dist/<browser>/` and writes the matching manifest as `manifest.json`
+- Optional `EXT_VERSION` env var (1–4 dot-separated integers) overrides `version` in the output manifest only; source manifests are never modified
 
 ### Packaging (`npm run package*`)
 - `npm run package:firefox` / `package:chrome` / `package` run the matching build, then `web-ext build` zips `dist/<browser>/` into `dist/packages/autofill-<browser>-<version>.zip`
@@ -94,11 +95,13 @@ AutoFillExtension/
 - Shows current page URL
 - Lists existing rules for the current page
 - Provides inline add/edit/delete/toggle per rule
+- Renames a profile via the ✎ button or double-click on its name (calls `renameProfile` in `shared/storage.js`)
 - Communicates with storage via direct `browser.storage.local` calls
 
 ### `options/options.js`
 - Full-page rule manager
 - Shows all URL patterns and their rules
+- Renames a profile via the "✎ Rename" button or double-click on its name
 - Import / Export rules as JSON
 
 ---

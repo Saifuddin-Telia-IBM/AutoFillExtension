@@ -79,11 +79,18 @@ function buildProfileBlock(profile) {
   nameSpan.className = 'profile-name';
   nameSpan.textContent = profile.name;
   // Double-click to rename
-  nameSpan.title = 'Double-click to rename';
+  nameSpan.title = 'Double-click or use ✎ to rename';
   nameSpan.addEventListener('dblclick', () => startRename(nameSpan, profile));
 
   const actions = document.createElement('div');
   actions.className = 'profile-actions';
+
+  // Rename profile button
+  const renameBtn = document.createElement('button');
+  renameBtn.className = 'btn-rename-profile';
+  renameBtn.title = 'Rename this profile';
+  renameBtn.textContent = '✎';
+  renameBtn.addEventListener('click', () => startRename(nameSpan, profile));
 
   // Fill Now button
   const fillBtn = document.createElement('button');
@@ -108,6 +115,7 @@ function buildProfileBlock(profile) {
     await renderProfiles();
   });
 
+  actions.appendChild(renameBtn);
   actions.appendChild(fillBtn);
   actions.appendChild(deleteProfileBtn);
   header.appendChild(nameSpan);
