@@ -1,0 +1,40 @@
+# AutoFill Extension — Progress Tracker
+
+## Status Legend
+- ✅ Complete
+- 🔄 In Progress
+- ⬜ Not Started
+
+---
+
+## Tasks
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| — | Planning docs (approach, architecture, tasks, progress) | ✅ | Done |
+| 1 | Project scaffolding (manifest, folder structure, icons) | ✅ | Done |
+| 2 | Storage module (`shared/storage.js`) | ✅ | Done |
+| 3 | Content script — autofill engine (`content/autofill.js`) | ✅ | Done |
+| 4 | Background script — message router (`background/background.js`) | ✅ | Done |
+| 5 | Popup UI (`popup/`) | ✅ | Done |
+| 6 | Options page (`options/`) | ✅ | Done |
+| 7 | Polish, icons, README, packaging instructions | ✅ | Done |
+
+---
+
+## Resumption Instructions
+
+If continuing in a new chat session:
+1. Read this file to see current status.
+2. Read `docs/TASKS.md` for the full scope of any remaining task.
+3. Read `docs/ARCHITECTURE.md` for data models, file structure, and message protocol.
+4. Tell the assistant: _"Continue AutoFill Extension from Task N"_ where N is the first ⬜ task.
+
+---
+
+## Change Log
+
+| Date | Change |
+|------|--------|
+| Initial | Planning documents created |
+| Session 1 | All 7 tasks completed — extension fully implemented |

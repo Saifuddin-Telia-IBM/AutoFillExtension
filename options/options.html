@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoFill — Options</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <div class="page-wrap">
+    <header>
+      <div class="header-inner">
+        <img src="../icons/icon-48.png" alt="" class="logo" />
+        <div>
+          <h1>AutoFill</h1>
+          <p class="subtitle">Configure autofill rules for any page</p>
+        </div>
+        <div class="header-actions">
+          <button id="btn-export" class="btn-ghost">Export JSON</button>
+          <label class="btn-ghost btn-file-label" title="Import rules from JSON file">
+            Import JSON
+            <input type="file" id="import-file" accept=".json" />
+          </label>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- Add new pattern section -->
+      <section class="add-pattern-section">
+        <h2>Add a URL pattern</h2>
+        <div class="add-pattern-row">
+          <input type="text" id="new-pattern-input" placeholder="e.g. http://192.168.1.1/setup  or  https://example.com/*" />
+          <button id="btn-add-pattern" class="btn-primary">Add Pattern</button>
+        </div>
+        <p class="hint">
+          Use <code>*</code> as a wildcard suffix, e.g. <code>http://host/*</code> to match all paths on that host.
+        </p>
+      </section>
+
+      <!-- All patterns and their rules -->
+      <div id="all-patterns">
+        <!-- Populated by options.js -->
+      </div>
+
+      <div id="empty-global" class="empty-state hidden">
+        <p>No rules configured yet.</p>
+        <p>Add a URL pattern above to get started.</p>
+      </div>
+    </main>
+
+    <!-- Inline rule edit modal -->
+    <div id="modal-backdrop" class="hidden">
+      <div id="rule-modal">
+        <h2 id="modal-title">Add Rule</h2>
+        <input type="hidden" id="modal-pattern" />
+        <input type="hidden" id="modal-rule-id" />
+
+        <label for="modal-selector">CSS Selector <span class="required">*</span></label>
+        <input type="text" id="modal-selector" placeholder='e.g. #password or input[name="ssid"]' />
+
+        <label for="modal-type">Field Type</label>
+        <select id="modal-type">
+          <option value="text">Text / Password / Email / Number</option>
+          <option value="checkbox">Checkbox</option>
+          <option value="radio">Radio Button</option>
+          <option value="select">Dropdown (select)</option>
+        </select>
+
+        <label for="modal-value-text" id="modal-label-value">Value</label>
+        <input type="text" id="modal-value-text" placeholder="Value to fill" />
+        <div id="modal-value-checkbox" class="checkbox-row hidden">
+          <input type="checkbox" id="modal-checkbox-value" />
+          <label for="modal-checkbox-value">Checked</label>
+        </div>
+
+        <label for="modal-label">Label <span class="muted">(optional)</span></label>
+        <input type="text" id="modal-label" placeholder="Friendly name for this rule" />
+
+        <div id="modal-error" class="error hidden"></div>
+
+        <div class="modal-actions">
+          <button id="modal-save" class="btn-primary">Save Rule</button>
+          <button id="modal-cancel" class="btn-ghost">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../shared/storage.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
