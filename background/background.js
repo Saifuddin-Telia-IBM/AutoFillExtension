@@ -1,72 +1,60 @@
 /**
- * background/background.js
+ * background/background.js  (v2)
  *
- * Background script — message router for AutoFill extension.
- * The content script cannot access browser.storage directly (it runs in the
- * page context), so it sends a message here and we proxy the storage lookup.
- *
- * Popup and options page are extension pages and can call browser.storage directly.
+ * Message router. Handles requests from the content script.
+ * Popup and options page access browser.storage directly.
  */
 
 'use strict';
 
-// ---------------------------------------------------------------------------
-// Inline URL-matching + storage helper (mirrors shared/storage.js logic)
-// Cannot use importScripts for a regular JS file in MV2 background easily,
-// so we keep just what the background needs here.
-// ---------------------------------------------------------------------------
-
 const STORAGE_KEY = 'autofillRules';
 
+// ---------------------------------------------------------------------------
+// URL matching + storage helpers (inlined — mirrors shared/storage.js)
+// ---------------------------------------------------------------------------
+
 function stripHash(url) {
-  try {
-    const u = new URL(url);
-    u.hash = '';
-    return u.toString();
-  } catch {
-    return url;
-  }
+  try { const u = new URL(url); u.hash = ''; return u.toString(); }
+  catch { return url; }
 }
 
 function patternMatches(urlPattern, url) {
-  const cleanUrl = stripHash(url);
-
-  if (urlPattern === cleanUrl) return true;
-
-  if (urlPattern.endsWith('*')) {
-    const prefix = urlPattern.slice(0, -1);
-    if (cleanUrl.startsWith(prefix)) return true;
-  }
-
+  const clean = stripHash(url);
+  if (urlPattern === clean) return true;
+  if (urlPattern.endsWith('*') && clean.startsWith(urlPattern.slice(0, -1))) return true;
   try {
-    const patUrl = new URL(urlPattern.endsWith('*') ? urlPattern.slice(0, -1) : urlPattern);
-    const pageUrl = new URL(cleanUrl);
-    if (
-      patUrl.hostname === pageUrl.hostname &&
-      patUrl.protocol === pageUrl.protocol &&
-      (patUrl.pathname === '/' || patUrl.pathname === '')
-    ) {
-      return true;
-    }
-  } catch {
-    // not a valid URL — ignore
-  }
-
+    const base = urlPattern.endsWith('*') ? urlPattern.slice(0, -1) : urlPattern;
+    const p = new URL(base), pg = new URL(clean);
+    if (p.hostname === pg.hostname && p.protocol === pg.protocol &&
+        (p.pathname === '/' || p.pathname === '')) return true;
+  } catch { /* ignore */ }
   return false;
 }
 
-async function getRulesForUrl(url) {
+function migrateValue(value) {
+  if (!value) return { profiles: [] };
+  if (value.profiles) return value;
+  if (Array.isArray(value)) {
+    return { profiles: [{ id: 'migrated', name: 'Default', rules: value }] };
+  }
+  return { profiles: [] };
+}
+
+async function getProfilesForUrl(url) {
   const result = await browser.storage.local.get(STORAGE_KEY);
-  const all = result[STORAGE_KEY] || {};
-  const matched = [];
-  for (const [pattern, rules] of Object.entries(all)) {
-    if (patternMatches(pattern, url)) {
-      for (const rule of rules) {
-        if (rule.enabled) matched.push(rule);
+  const raw = result[STORAGE_KEY] || {};
+  const profiles = [];
+  for (const [pattern, value] of Object.entries(raw)) {
+    if (!patternMatches(pattern, url)) continue;
+    const data = migrateValue(value);
+    for (const profile of (data.profiles || [])) {
+      const enabledRules = (profile.rules || []).filter(r => r.enabled);
+      if (enabledRules.length > 0) {
+        profiles.push({ id: profile.id, name: profile.name, rules: enabledRules, patternKey: pattern });
       }
     }
   }
-  return matched;
+  return profiles;
 }
 
 // ---------------------------------------------------------------------------
@@ -74,13 +62,13 @@ async function getRulesForUrl(url) {
 // ---------------------------------------------------------------------------
 
 browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type === 'GET_RULES_FOR_URL') {
-    getRulesForUrl(message.url)
-      .then(rules => sendResponse({ rules }))
+  if (message.type === 'GET_PROFILES_FOR_URL') {
+    getProfilesForUrl(message.url)
+      .then(profiles => sendResponse({ profiles }))
       .catch(err => {
-        console.error('[AutoFill background] Error fetching rules:', err);
-        sendResponse({ rules: [] });
+        console.error('[AutoFill background]', err);
+        sendResponse({ profiles: [] });
       });
-    return true; // keep channel open for async response
+    return true;
   }
 });

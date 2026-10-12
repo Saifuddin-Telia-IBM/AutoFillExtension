@@ -44,6 +44,34 @@ header h1 { font-size: 20px; font-weight: 700; color: #1e3a5f; }
 .add-pattern-row { display: flex; gap: 8px; }
 .add-pattern-row input { flex: 1; }
 
+/* Profile empty / rules empty */
+.profile-empty, .rules-empty {
+  padding: 12px 20px;
+  font-size: 13px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Profile section inside a pattern card */
+.profile-section {
+  border-top: 1px solid #e5e7eb;
+}
+.profile-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f1f3;
+}
+.profile-section-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e3a5f;
+  cursor: pointer;
+}
+.profile-section-actions { display: flex; gap: 6px; align-items: center; }
+
 /* Pattern card */
 .pattern-card {
   background: #fff;

@@ -1,24 +1,13 @@
 /**
- * options/options.js
- *
- * Full-page rule manager for AutoFill extension.
- * shared/storage.js is loaded before this file via options.html.
+ * options/options.js  (v2 — profile-aware)
  */
 
 'use strict';
 
 const $ = id => document.getElementById(id);
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function esc(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function valuePreview(rule) {
@@ -45,116 +34,190 @@ async function renderAll() {
   emptyGlobal.classList.add('hidden');
 
   for (const pattern of patterns) {
-    const rules = all[pattern];
-    container.appendChild(buildPatternCard(pattern, rules));
+    const data = all[pattern];
+    container.appendChild(buildPatternCard(pattern, data.profiles || []));
   }
 }
 
-function buildPatternCard(pattern, rules) {
+function buildPatternCard(pattern, profiles) {
   const card = document.createElement('div');
   card.className = 'pattern-card';
   card.dataset.pattern = pattern;
 
-  // Header
+  // Pattern header
   const header = document.createElement('div');
   header.className = 'pattern-header';
 
-  const patternUrlSpan = document.createElement('span');
-  patternUrlSpan.className = 'pattern-url';
-  patternUrlSpan.title = pattern;
-  patternUrlSpan.textContent = pattern;
+  const urlSpan = document.createElement('span');
+  urlSpan.className = 'pattern-url';
+  urlSpan.title = pattern;
+  urlSpan.textContent = pattern;
 
-  const patternActions = document.createElement('div');
-  patternActions.className = 'pattern-actions';
+  const patActions = document.createElement('div');
+  patActions.className = 'pattern-actions';
+
+  const addProfileBtn = document.createElement('button');
+  addProfileBtn.className = 'btn-ghost btn-sm';
+  addProfileBtn.textContent = '+ Add Profile';
+  addProfileBtn.addEventListener('click', async () => {
+    const name = prompt('Profile name:', 'New Profile');
+    if (!name) return;
+    await addProfile(pattern, name.trim() || 'New Profile');
+    await renderAll();
+    const card2 = document.querySelector(`.pattern-card[data-pattern="${CSS.escape(pattern)}"]`);
+    if (card2) card2.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
 
   const deletePatternBtn = document.createElement('button');
-  deletePatternBtn.className = 'btn-danger-outline btn-sm btn-delete-pattern';
+  deletePatternBtn.className = 'btn-danger-outline btn-sm';
   deletePatternBtn.textContent = 'Delete pattern';
   deletePatternBtn.addEventListener('click', async () => {
-    if (!confirm(`Delete all rules for "${pattern}"?`)) return;
+    if (!confirm(`Delete all profiles and rules for "${pattern}"?`)) return;
     await deletePattern(pattern);
     await renderAll();
   });
 
-  patternActions.appendChild(deletePatternBtn);
-  header.appendChild(patternUrlSpan);
-  header.appendChild(patternActions);
-
-  // Rules table
-  const table = document.createElement('table');
-  table.className = 'rules-table';
-
-  const thead = document.createElement('thead');
-  const headerRow = document.createElement('tr');
-  for (const text of ['Selector', 'Type', 'Value', 'Label', 'On', 'Actions']) {
-    const th = document.createElement('th');
-    th.textContent = text;
-    if (text === 'Actions') th.className = 'col-actions';
-    headerRow.appendChild(th);
-  }
-  thead.appendChild(headerRow);
-  table.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
-  table.appendChild(tbody);
-
-  for (const rule of rules) {
-    tbody.appendChild(buildRuleRow(pattern, rule));
-  }
-
-  // Add rule row
-  const addRow = document.createElement('div');
-  addRow.className = 'add-rule-row';
-  const addBtn = document.createElement('button');
-  addBtn.className = 'btn-primary btn-sm';
-  addBtn.textContent = '+ Add Rule';
-  addBtn.addEventListener('click', () => openModal(pattern, null));
-  addRow.appendChild(addBtn);
-
+  patActions.appendChild(addProfileBtn);
+  patActions.appendChild(deletePatternBtn);
+  header.appendChild(urlSpan);
+  header.appendChild(patActions);
   card.appendChild(header);
-  card.appendChild(table);
-  card.appendChild(addRow);
+
+  if (profiles.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'profile-empty';
+    empty.textContent = 'No profiles yet. Click "+ Add Profile" to create one.';
+    card.appendChild(empty);
+    return card;
+  }
+
+  for (const profile of profiles) {
+    card.appendChild(buildProfileSection(pattern, profile));
+  }
+
   return card;
 }
 
-function buildRuleRow(pattern, rule) {
+function buildProfileSection(pattern, profile) {
+  const section = document.createElement('div');
+  section.className = 'profile-section';
+  section.dataset.profileId = profile.id;
+
+  // Profile header
+  const header = document.createElement('div');
+  header.className = 'profile-section-header';
+
+  const nameSpan = document.createElement('span');
+  nameSpan.className = 'profile-section-name';
+  nameSpan.textContent = profile.name;
+  nameSpan.title = 'Double-click to rename';
+  nameSpan.addEventListener('dblclick', () => {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = profile.name;
+    input.style.cssText = 'font-size:13px;font-weight:600;border:1px solid #3b82f6;border-radius:3px;padding:2px 6px;width:160px;';
+    nameSpan.replaceWith(input);
+    input.focus(); input.select();
+    async function commit() {
+      const v = input.value.trim() || profile.name;
+      await renameProfile(pattern, profile.id, v);
+      await renderAll();
+    }
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      if (e.key === 'Escape') { input.value = profile.name; commit(); }
+    });
+  });
+
+  const profileActions = document.createElement('div');
+  profileActions.className = 'profile-section-actions';
+
+  const addRuleBtn = document.createElement('button');
+  addRuleBtn.className = 'btn-primary btn-sm';
+  addRuleBtn.textContent = '+ Add Rule';
+  addRuleBtn.addEventListener('click', () => openModal(pattern, profile.id, null));
+
+  const deleteProfileBtn = document.createElement('button');
+  deleteProfileBtn.className = 'btn-danger-outline btn-sm';
+  deleteProfileBtn.textContent = 'Delete profile';
+  deleteProfileBtn.addEventListener('click', async () => {
+    if (!confirm(`Delete profile "${profile.name}" and all its rules?`)) return;
+    await deleteProfile(pattern, profile.id);
+    await renderAll();
+  });
+
+  profileActions.appendChild(addRuleBtn);
+  profileActions.appendChild(deleteProfileBtn);
+  header.appendChild(nameSpan);
+  header.appendChild(profileActions);
+  section.appendChild(header);
+
+  // Rules table
+  const rules = profile.rules || [];
+  if (rules.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'rules-empty';
+    empty.textContent = 'No rules yet.';
+    section.appendChild(empty);
+  } else {
+    const table = document.createElement('table');
+    table.className = 'rules-table';
+
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    for (const text of ['Selector', 'Type', 'Value', 'Label', 'On', 'Actions']) {
+      const th = document.createElement('th');
+      th.textContent = text;
+      if (text === 'Actions') th.className = 'col-actions';
+      headerRow.appendChild(th);
+    }
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    for (const rule of rules) {
+      tbody.appendChild(buildRuleRow(pattern, profile.id, rule));
+    }
+    table.appendChild(tbody);
+    section.appendChild(table);
+  }
+
+  return section;
+}
+
+function buildRuleRow(pattern, profileId, rule) {
   const tr = document.createElement('tr');
   tr.dataset.id = rule.id;
 
-  // Selector cell
   const tdSel = document.createElement('td');
   tdSel.className = 'col-selector';
   tdSel.title = rule.selector;
   tdSel.textContent = rule.selector;
 
-  // Type badge cell
   const tdType = document.createElement('td');
   const badge = document.createElement('span');
   badge.className = `badge ${rule.type}`;
   badge.textContent = rule.type;
   tdType.appendChild(badge);
 
-  // Value cell
   const tdVal = document.createElement('td');
   tdVal.className = 'col-value';
   tdVal.title = String(rule.value);
   tdVal.textContent = valuePreview(rule);
 
-  // Label cell
   const tdLabel = document.createElement('td');
   tdLabel.className = 'col-value';
   tdLabel.textContent = rule.label || '—';
 
-  // Toggle cell
   const tdToggle = document.createElement('td');
   const toggleLabel = document.createElement('label');
   toggleLabel.className = 'toggle';
   const toggleInput = document.createElement('input');
   toggleInput.type = 'checkbox';
-  toggleInput.className = 'rule-toggle';
   toggleInput.checked = rule.enabled;
   toggleInput.addEventListener('change', async e => {
-    await updateRule(pattern, rule.id, { enabled: e.target.checked });
+    await updateRule(pattern, profileId, rule.id, { enabled: e.target.checked });
   });
   const toggleSlider = document.createElement('span');
   toggleSlider.className = 'toggle-slider';
@@ -162,23 +225,22 @@ function buildRuleRow(pattern, rule) {
   toggleLabel.appendChild(toggleSlider);
   tdToggle.appendChild(toggleLabel);
 
-  // Actions cell
   const tdActions = document.createElement('td');
   tdActions.className = 'col-actions';
 
   const editBtn = document.createElement('button');
-  editBtn.className = 'btn-icon-sm btn-edit-rule';
+  editBtn.className = 'btn-icon-sm';
   editBtn.title = 'Edit';
   editBtn.textContent = '✎';
-  editBtn.addEventListener('click', () => openModal(pattern, rule));
+  editBtn.addEventListener('click', () => openModal(pattern, profileId, rule));
 
   const deleteBtn = document.createElement('button');
-  deleteBtn.className = 'btn-danger-icon btn-delete-rule';
+  deleteBtn.className = 'btn-danger-icon';
   deleteBtn.title = 'Delete';
   deleteBtn.textContent = '✕';
   deleteBtn.addEventListener('click', async () => {
     if (!confirm('Delete this rule?')) return;
-    await deleteRule(pattern, rule.id);
+    await deleteRule(pattern, profileId, rule.id);
     await renderAll();
   });
 
@@ -191,7 +253,6 @@ function buildRuleRow(pattern, rule) {
   tr.appendChild(tdLabel);
   tr.appendChild(tdToggle);
   tr.appendChild(tdActions);
-
   return tr;
 }
 
@@ -199,13 +260,19 @@ function buildRuleRow(pattern, rule) {
 // Modal
 // ---------------------------------------------------------------------------
 
-function openModal(pattern, rule) {
-  $('modal-pattern').value = pattern;
-  $('modal-rule-id').value = rule ? rule.id : '';
+let _modalPattern   = '';
+let _modalProfileId = '';
+
+function openModal(pattern, profileId, rule) {
+  _modalPattern   = pattern;
+  _modalProfileId = profileId;
+  $('modal-pattern').value   = pattern;
+  $('modal-profile-id').value = profileId;
+  $('modal-rule-id').value   = rule ? rule.id : '';
   $('modal-title').textContent = rule ? 'Edit Rule' : 'Add Rule';
-  $('modal-selector').value = rule ? rule.selector : '';
-  $('modal-type').value = rule ? rule.type : 'text';
-  $('modal-label').value = rule ? (rule.label || '') : '';
+  $('modal-selector').value  = rule ? rule.selector : '';
+  $('modal-type').value      = rule ? rule.type : 'text';
+  $('modal-label').value     = rule ? (rule.label || '') : '';
   $('modal-error').classList.add('hidden');
   updateModalValueField(rule ? rule.type : 'text');
 
@@ -214,7 +281,6 @@ function openModal(pattern, rule) {
   } else {
     $('modal-value-text').value = rule ? String(rule.value) : '';
   }
-
   $('modal-backdrop').classList.remove('hidden');
   $('modal-selector').focus();
 }
@@ -231,9 +297,10 @@ function updateModalValueField(type) {
 }
 
 async function saveModal() {
-  const pattern = $('modal-pattern').value;
-  const ruleId = $('modal-rule-id').value;
-  const selector = $('modal-selector').value.trim();
+  const selector  = $('modal-selector').value.trim();
+  const profileId = $('modal-profile-id').value;
+  const ruleId    = $('modal-rule-id').value;
+  const pattern   = $('modal-pattern').value;
 
   if (!selector) {
     $('modal-error').textContent = 'CSS Selector is required.';
@@ -241,21 +308,15 @@ async function saveModal() {
     return;
   }
 
-  const type = $('modal-type').value;
-  let value;
-  if (type === 'checkbox') {
-    value = $('modal-checkbox-value').checked;
-  } else {
-    value = $('modal-value-text').value;
-  }
+  const type  = $('modal-type').value;
+  const value = type === 'checkbox' ? $('modal-checkbox-value').checked : $('modal-value-text').value;
   const label = $('modal-label').value.trim();
 
   if (ruleId) {
-    await updateRule(pattern, ruleId, { selector, type, value, label });
+    await updateRule(pattern, profileId, ruleId, { selector, type, value, label });
   } else {
-    await addRule(pattern, { selector, type, value, label });
+    await addRule(pattern, profileId, { selector, type, value, label });
   }
-
   closeModal();
   await renderAll();
 }
@@ -266,39 +327,39 @@ async function saveModal() {
 
 async function exportRules() {
   const all = await getAllRules();
-  const json = JSON.stringify(all, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = 'autofill-rules.json';
-  a.click();
+  a.href = url; a.download = 'autofill-rules.json'; a.click();
   URL.revokeObjectURL(url);
 }
 
 async function importRulesFromFile(file) {
   const text = await file.text();
   let parsed;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    alert('Invalid JSON file.');
-    return;
-  }
+  try { parsed = JSON.parse(text); } catch { alert('Invalid JSON file.'); return; }
   if (typeof parsed !== 'object' || Array.isArray(parsed)) {
-    alert('Invalid rules format — expected a JSON object mapping URL patterns to rule arrays.');
+    alert('Invalid format — expected a JSON object mapping URL patterns to profile data.');
     return;
   }
   const merge = confirm(
-    'Import mode:\n\n' +
-    '• OK = Merge with existing rules (keeps current rules, adds new patterns)\n' +
-    '• Cancel = Replace all existing rules with the imported file'
+    'Import mode:\n\n• OK = Merge with existing rules\n• Cancel = Replace all existing rules'
   );
   if (merge) {
     const existing = await getAllRules();
-    for (const [pattern, rules] of Object.entries(parsed)) {
-      if (!existing[pattern]) existing[pattern] = [];
-      existing[pattern].push(...rules);
+    for (const [pattern, data] of Object.entries(parsed)) {
+      if (!existing[pattern]) { existing[pattern] = data; continue; }
+      // Merge profiles by name
+      const existingProfiles = existing[pattern].profiles || [];
+      for (const incomingProfile of (data.profiles || [])) {
+        const match = existingProfiles.find(p => p.name === incomingProfile.name);
+        if (match) {
+          match.rules.push(...(incomingProfile.rules || []));
+        } else {
+          existingProfiles.push(incomingProfile);
+        }
+      }
+      existing[pattern].profiles = existingProfiles;
     }
     await saveRules(existing);
   } else {
@@ -314,46 +375,32 @@ async function importRulesFromFile(file) {
 async function init() {
   await renderAll();
 
-  // Add pattern
   $('btn-add-pattern').addEventListener('click', async () => {
     const pattern = $('new-pattern-input').value.trim();
     if (!pattern) return;
-    const all = await getAllRules();
-    if (!all[pattern]) {
-      all[pattern] = [];
-      await saveRules(all);
-    }
+    await ensurePattern(pattern);
     $('new-pattern-input').value = '';
     await renderAll();
-    // Scroll to the new pattern card
     const card = document.querySelector(`.pattern-card[data-pattern="${CSS.escape(pattern)}"]`);
     if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
-
   $('new-pattern-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') $('btn-add-pattern').click();
   });
 
-  // Export
   $('btn-export').addEventListener('click', exportRules);
 
-  // Import
   $('import-file').addEventListener('change', async e => {
     const file = e.target.files[0];
     if (file) await importRulesFromFile(file);
-    e.target.value = ''; // reset so same file can be re-imported
+    e.target.value = '';
   });
 
-  // Modal
   $('modal-type').addEventListener('change', e => updateModalValueField(e.target.value));
   $('modal-save').addEventListener('click', saveModal);
   $('modal-cancel').addEventListener('click', closeModal);
-  $('modal-backdrop').addEventListener('click', e => {
-    if (e.target === $('modal-backdrop')) closeModal();
-  });
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeModal();
-  });
+  $('modal-backdrop').addEventListener('click', e => { if (e.target === $('modal-backdrop')) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 }
 
 document.addEventListener('DOMContentLoaded', init);
