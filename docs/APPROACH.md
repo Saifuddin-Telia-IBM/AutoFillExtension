@@ -80,4 +80,4 @@ All rules are stored in `browser.storage.local` (no server, no sync unless user 
 
 - Password manager replacement (no encryption of values)
 - Form submission (extension fills fields, does not click Submit)
-- Cross-browser support in this iteration (Firefox-first, WebExtensions API is compatible with Chrome with minor manifest changes)
+- Browsers other than Firefox and Chromium-based browsers (Chrome, Edge, Brave). Chrome is supported via a separate MV3 manifest (`manifest.chrome.json`) and a small `browser` → `chrome` alias; Safari is not supported

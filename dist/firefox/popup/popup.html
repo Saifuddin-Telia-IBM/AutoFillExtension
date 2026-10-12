@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AutoFill</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <img src="../icons/icon-48.png" alt="" class="logo" />
+    <h1>AutoFill</h1>
+  </header>
+
+  <div id="url-bar">
+    <span class="label">Page:</span>
+    <span id="current-url" class="url-text"></span>
+  </div>
+
+  <div id="pattern-bar" class="hidden">
+    <span class="label">Pattern:</span>
+    <span id="active-pattern" class="url-text"></span>
+    <button id="btn-change-pattern" class="btn-icon" title="Change URL pattern">✎</button>
+  </div>
+
+  <!-- Pattern setup form (shown when no pattern exists yet) -->
+  <div id="pattern-form" class="hidden">
+    <label for="pattern-input">URL Pattern</label>
+    <input type="text" id="pattern-input" placeholder="e.g. http://192.168.1.1/setup" />
+    <div class="hint">Use <code>*</code> as wildcard, e.g. <code>http://host/*</code></div>
+    <div class="row-actions">
+      <button id="btn-save-pattern" class="btn-primary">Use this pattern</button>
+    </div>
+  </div>
+
+  <!-- Profiles list -->
+  <div id="profiles-section" class="hidden">
+    <div class="section-header">
+      <span>Profiles</span>
+      <button id="btn-add-profile" class="btn-small btn-primary">+ New Profile</button>
+    </div>
+
+    <!-- New profile name form -->
+    <div id="new-profile-form" class="inline-form hidden">
+      <input type="text" id="new-profile-name" placeholder="Profile name (e.g. Admin)" />
+      <div class="row-actions tight">
+        <button id="btn-save-new-profile" class="btn-primary btn-small">Create</button>
+        <button id="btn-cancel-new-profile" class="btn-ghost btn-small">Cancel</button>
+      </div>
+    </div>
+
+    <div id="profiles-list">
+      <!-- Profile accordions injected by popup.js -->
+    </div>
+
+    <div id="empty-state" class="hidden">
+      <p>No profiles yet. Click <strong>+ New Profile</strong> to add one.</p>
+    </div>
+  </div>
+
+  <!-- Rule add/edit form (inline, shown inside a profile) -->
+  <div id="rule-form" class="hidden">
+    <h2 id="form-title">Add Rule</h2>
+    <input type="hidden" id="edit-rule-id" />
+    <input type="hidden" id="edit-profile-id" />
+
+    <label for="field-selector">CSS Selector <span class="required">*</span></label>
+    <input type="text" id="field-selector" placeholder='e.g. #password or input[name="ssid"]' />
+
+    <label for="field-type">Field Type</label>
+    <select id="field-type">
+      <option value="text">Text / Password / Email / Number</option>
+      <option value="checkbox">Checkbox</option>
+      <option value="radio">Radio Button</option>
+      <option value="select">Dropdown (select)</option>
+    </select>
+
+    <label for="field-value-text" id="label-value">Value</label>
+    <input type="text" id="field-value-text" placeholder="Value to fill" />
+    <div id="field-value-checkbox" class="checkbox-row hidden">
+      <input type="checkbox" id="checkbox-value" />
+      <label for="checkbox-value">Checked</label>
+    </div>
+
+    <label for="field-label">Label <span class="muted">(optional)</span></label>
+    <input type="text" id="field-label" placeholder="Friendly name" />
+
+    <div class="row-actions">
+      <button id="btn-save-rule" class="btn-primary">Save</button>
+      <button id="btn-cancel-rule" class="btn-ghost">Cancel</button>
+    </div>
+    <div id="form-error" class="error hidden"></div>
+  </div>
+
+  <footer>
+    <a id="link-options" href="#">Manage all rules →</a>
+  </footer>
+
+  <script src="../shared/browser-polyfill.js"></script>
+  <script src="../shared/storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

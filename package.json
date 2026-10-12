@@ -7,6 +7,12 @@
     "doc": "docs"
   },
   "scripts": {
+    "build": "node scripts/build.js all",
+    "build:firefox": "node scripts/build.js firefox",
+    "build:chrome": "node scripts/build.js chrome",
+    "package:firefox": "npm run build:firefox && web-ext build --source-dir dist/firefox --artifacts-dir dist/packages --filename autofill-firefox-{version}.zip --overwrite-dest",
+    "package:chrome": "npm run build:chrome && web-ext build --source-dir dist/chrome --artifacts-dir dist/packages --filename autofill-chrome-{version}.zip --overwrite-dest",
+    "package": "npm run package:firefox && npm run package:chrome",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

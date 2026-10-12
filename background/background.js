@@ -7,6 +7,10 @@
 
 'use strict';
 
+// Chrome exposes `chrome` instead of `browser` (mirrors shared/browser-polyfill.js,
+// inlined because the Chrome service worker doesn't load other scripts here).
+if (typeof globalThis.browser === 'undefined') globalThis.browser = globalThis.chrome;
+
 const STORAGE_KEY = 'autofillRules';
 
 // ---------------------------------------------------------------------------

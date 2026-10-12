@@ -116,6 +116,20 @@ Each task below is self-contained and can be started independently if a chat ses
 
 ---
 
+## Task 8 — Chrome Support and Per-Browser Builds
+**Goal:** Run the extension in Chrome/Chromium and build each browser's package into its own `dist/` folder.
+
+**Steps:**
+1. Add `manifest.chrome.json` (MV3: service worker, `action`, `host_permissions`).
+2. Add `shared/browser-polyfill.js` and load it in the content script, popup, and options page; inline the alias in `background/background.js`.
+3. Add `scripts/build.js` producing `dist/firefox` and `dist/chrome`, with `npm run build`, `build:firefox`, `build:chrome`.
+4. Add `npm run package`, `package:firefox`, `package:chrome` to zip each build into `dist/packages/`.
+5. Document build, packaging, install (Firefox and Chrome) and publishing in `README.md`.
+
+**Completion criteria:** `npm run build` produces both folders and `npm run package` produces both zips; each build loads without errors in its browser.
+
+---
+
 ## Quick-Start for Resuming a Session
 
 If a chat session ends mid-task, start a new session and say:

@@ -19,6 +19,7 @@
 | 5 | Popup UI (`popup/`) | ✅ | Done |
 | 6 | Options page (`options/`) | ✅ | Done |
 | 7 | Polish, icons, README, packaging instructions | ✅ | Done |
+| 8 | Chrome support (MV3 manifest, polyfill, per-browser build into `dist/firefox` and `dist/chrome`) | ✅ | Done |
 
 ---
 
@@ -38,3 +39,4 @@ If continuing in a new chat session:
 |------|--------|
 | Initial | Planning documents created |
 | Session 1 | All 7 tasks completed — extension fully implemented |
+| Session 2 | Added Chrome support, `scripts/build.js`, and `dist/firefox` / `dist/chrome` outputs; README and docs updated |

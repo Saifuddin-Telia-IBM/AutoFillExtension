@@ -4,7 +4,8 @@
 
 ```
 AutoFillExtension/
-├── manifest.json               # Extension manifest (MV2 for Firefox)
+├── manifest.json               # Firefox manifest (MV2)
+├── manifest.chrome.json        # Chrome manifest (MV3)
 ├── background/
 │   └── background.js           # Background script — message router
 ├── content/
@@ -18,10 +19,18 @@ AutoFillExtension/
 │   ├── options.js              # Options page logic
 │   └── options.css             # Options styles
 ├── shared/
-│   └── storage.js              # Storage read/write helpers (shared module)
+│   ├── storage.js              # Storage read/write helpers (shared module)
+│   └── browser-polyfill.js     # Aliases `browser` to `chrome` on Chrome
 ├── icons/
 │   ├── icon-48.png
 │   └── icon-96.png
+├── scripts/
+│   ├── build.js                # Builds dist/firefox and dist/chrome
+│   └── generate-icons.js       # Icon generation
+├── dist/                       # Generated build output (not hand-edited)
+│   ├── firefox/                # npm run build:firefox
+│   ├── chrome/                 # npm run build:chrome
+│   └── packages/               # npm run package (zips)
 └── docs/
     ├── APPROACH.md
     ├── ARCHITECTURE.md
@@ -33,10 +42,30 @@ AutoFillExtension/
 
 ## Component Responsibilities
 
-### `manifest.json`
+### `manifest.json` (Firefox)
 - Declares `manifest_version: 2` (Firefox MV2 — most stable for Firefox extensions)
 - Requests permissions: `storage`, `activeTab`, `<all_urls>`
 - Registers the background script, content script (matching all URLs), popup, and options page
+
+### `manifest.chrome.json` (Chrome / Chromium)
+- Declares `manifest_version: 3` (required by Chrome)
+- `<all_urls>` moves to `host_permissions`; `browser_action` becomes `action`
+- Background is a `service_worker` instead of a persistent/event page script
+- No `browser_specific_settings` (Firefox-only)
+- Copied to `manifest.json` inside `dist/chrome/` by the build script
+
+### `shared/browser-polyfill.js`
+- Chrome only exposes `chrome.*`; this sets `globalThis.browser = globalThis.chrome` when `browser` is undefined
+- Loaded by the content script (via manifest), popup and options pages (via `<script>`)
+- `background/background.js` contains the same one-line alias inline (service workers can't load it from the manifest)
+
+### `scripts/build.js`
+- `node scripts/build.js <firefox|chrome|all>` (wrapped by `npm run build:firefox`, `build:chrome`, `build`)
+- Copies `background/`, `content/`, `popup/`, `options/`, `shared/`, `icons/` to `dist/<browser>/` and writes the matching manifest as `manifest.json`
+
+### Packaging (`npm run package*`)
+- `npm run package:firefox` / `package:chrome` / `package` run the matching build, then `web-ext build` zips `dist/<browser>/` into `dist/packages/autofill-<browser>-<version>.zip`
+- Firefox zip → install via `about:addons` → **Install Add-on From File…** (with `xpinstall.signatures.required = false` on Developer Edition/Nightly) or submit to AMO; Chrome zip → upload to the Chrome Web Store
 
 ### `background/background.js`
 - Listens for messages from popup and options page
