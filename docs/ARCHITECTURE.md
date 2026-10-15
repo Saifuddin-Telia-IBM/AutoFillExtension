@@ -97,6 +97,8 @@ AutoFillExtension/
 - `deleteProfile(urlPattern, profileId)`
 - `addAlias(urlPattern, alias)` — adds an extra URL that shares the pattern's profiles
 - `removeAlias(urlPattern, alias)` — removes an alias URL
+- `renamePattern(oldPattern, newPattern)` — renames the storage key, preserving all profiles and aliases
+- `renameAlias(urlPattern, oldAlias, newAlias)` — replaces one alias value in-place
 - `addRule(urlPattern, profileId, fieldRule)` — adds a rule to a specific profile, returns new id
 - `updateRule(urlPattern, profileId, ruleId, patch)` — partial update
 - `deleteRule(urlPattern, profileId, ruleId)`
@@ -114,7 +116,8 @@ AutoFillExtension/
 ### `options/options.js`
 - Full-page rule manager
 - Shows all URL patterns, their aliases, their profiles, and their rules
-- Add/remove aliases per pattern (+ Add URL / ✕)
+- **Edit** primary URL — ✎ Edit URL button or double-click; calls `renamePattern`
+- Add/remove/edit aliases per pattern (+ Add URL / ✎ / ✕); edit calls `renameAlias`
 - Add/delete/rename profiles per pattern
 - Add/edit/toggle/delete rules per profile
 - Import / Export rules as JSON

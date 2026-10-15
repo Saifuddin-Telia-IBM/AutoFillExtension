@@ -52,11 +52,40 @@ function buildPatternCard(pattern, data) {
 
   const urlSpan = document.createElement('span');
   urlSpan.className = 'pattern-url';
-  urlSpan.title = pattern;
+  urlSpan.title = 'Double-click to edit';
   urlSpan.textContent = pattern;
+
+  const startPatternEdit = () => {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = pattern;
+    input.style.cssText = 'font-family:monospace;font-size:13px;font-weight:600;border:1px solid #3b82f6;border-radius:3px;padding:2px 6px;width:320px;';
+    urlSpan.replaceWith(input);
+    input.focus(); input.select();
+    async function commit() {
+      const v = input.value.trim();
+      if (v && v !== pattern) {
+        await renamePattern(pattern, v);
+      }
+      await renderAll();
+      const card2 = document.querySelector(`.pattern-card[data-pattern="${CSS.escape(v && v !== pattern ? v : pattern)}"]`);
+      if (card2) card2.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      if (e.key === 'Escape') { input.value = pattern; input.blur(); }
+    });
+  };
+  urlSpan.addEventListener('dblclick', startPatternEdit);
 
   const patActions = document.createElement('div');
   patActions.className = 'pattern-actions';
+
+  const editPatternBtn = document.createElement('button');
+  editPatternBtn.className = 'btn-ghost btn-sm';
+  editPatternBtn.textContent = '✎ Edit URL';
+  editPatternBtn.addEventListener('click', startPatternEdit);
 
   const addAliasBtn = document.createElement('button');
   addAliasBtn.className = 'btn-ghost btn-sm';
@@ -92,6 +121,7 @@ function buildPatternCard(pattern, data) {
     await renderAll();
   });
 
+  patActions.appendChild(editPatternBtn);
   patActions.appendChild(addAliasBtn);
   patActions.appendChild(addProfileBtn);
   patActions.appendChild(deletePatternBtn);
@@ -111,7 +141,35 @@ function buildPatternCard(pattern, data) {
       const aliasLabel = document.createElement('span');
       aliasLabel.className = 'alias-url';
       aliasLabel.textContent = alias;
-      aliasLabel.title = alias;
+      aliasLabel.title = 'Double-click to edit';
+
+      const startAliasEdit = () => {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = alias;
+        input.style.cssText = 'font-family:monospace;font-size:12px;border:1px solid #3b82f6;border-radius:3px;padding:2px 6px;flex:1;min-width:0;';
+        aliasLabel.replaceWith(input);
+        input.focus(); input.select();
+        async function commit() {
+          const v = input.value.trim();
+          if (v && v !== alias) {
+            await renameAlias(pattern, alias, v);
+          }
+          await renderAll();
+        }
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', e => {
+          if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+          if (e.key === 'Escape') { input.value = alias; input.blur(); }
+        });
+      };
+      aliasLabel.addEventListener('dblclick', startAliasEdit);
+
+      const editAliasBtn = document.createElement('button');
+      editAliasBtn.className = 'btn-icon-sm';
+      editAliasBtn.title = 'Edit this URL alias';
+      editAliasBtn.textContent = '✎';
+      editAliasBtn.addEventListener('click', startAliasEdit);
 
       const removeBtn = document.createElement('button');
       removeBtn.className = 'btn-danger-icon';
@@ -124,6 +182,7 @@ function buildPatternCard(pattern, data) {
       });
 
       row.appendChild(aliasLabel);
+      row.appendChild(editAliasBtn);
       row.appendChild(removeBtn);
       aliasList.appendChild(row);
     }

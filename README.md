@@ -207,6 +207,7 @@ The Options page lets you:
 - Add, edit, toggle, and delete rules
 - Add and remove **profiles** per URL pattern
 - Add and remove **URL aliases** per pattern (same profiles, additional URLs)
+- **Edit** the primary URL or any alias — click **✎ Edit URL** or double-click the URL text, type the new value, then press **Enter** or click away
 - Rename profiles
 - Delete an entire URL pattern
 - **Export** all rules to a JSON file

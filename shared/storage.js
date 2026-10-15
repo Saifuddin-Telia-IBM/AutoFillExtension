@@ -192,6 +192,32 @@ async function removeAlias(urlPattern, alias) {
 
 // --- Pattern-level ---
 
+/**
+ * Rename a URL pattern key, preserving all its profiles and aliases.
+ * No-op if oldPattern doesn't exist or newPattern already exists.
+ */
+async function renamePattern(oldPattern, newPattern) {
+  if (!oldPattern || !newPattern || oldPattern === newPattern) return;
+  const all = await getAllRules();
+  if (!all[oldPattern] || all[newPattern]) return;
+  all[newPattern] = all[oldPattern];
+  delete all[oldPattern];
+  await saveRules(all);
+}
+
+/** Rename a single alias on a pattern entry. */
+async function renameAlias(urlPattern, oldAlias, newAlias) {
+  if (!oldAlias || !newAlias || oldAlias === newAlias) return;
+  const all = await getAllRules();
+  if (!all[urlPattern] || !all[urlPattern].aliases) return;
+  const idx = all[urlPattern].aliases.indexOf(oldAlias);
+  if (idx === -1) return;
+  // Avoid duplicates
+  if (all[urlPattern].aliases.includes(newAlias)) return;
+  all[urlPattern].aliases[idx] = newAlias;
+  await saveRules(all);
+}
+
 /** Ensure a URL pattern key exists in storage. */
 async function ensurePattern(urlPattern) {
   const all = await getAllRules();
