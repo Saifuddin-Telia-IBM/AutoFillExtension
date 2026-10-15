@@ -332,6 +332,67 @@ function openRuleForm(pattern, profileId, rule) {
   $('rule-form').scrollIntoView({ block: 'nearest' });
 }
 
+// -------------------------------------------------------------------------
+// Element picker: the popup closes as soon as the page is clicked, so the
+// in-progress form is stashed as a draft and restored on the next open.
+// -------------------------------------------------------------------------
+
+const DRAFT_KEY  = 'autofillPickerDraft';
+const RESULT_KEY = 'autofillPickerResult';
+const DRAFT_MAX_AGE_MS = 10 * 60 * 1000;
+
+async function startPicker() {
+  const tab = await getActiveTab();
+  if (!tab) return;
+  const type = $('field-type').value;
+  const draft = {
+    savedAt: Date.now(),
+    pattern: $('edit-pattern').value,
+    profileId: $('edit-profile-id').value,
+    ruleId: $('edit-rule-id').value,
+    selector: $('field-selector').value,
+    type,
+    value: type === 'checkbox' ? $('checkbox-value').checked : $('field-value-text').value,
+    label: $('field-label').value,
+  };
+  try {
+    await browser.tabs.sendMessage(tab.id, { type: 'START_PICKER' });
+  } catch {
+    $('form-error').textContent = 'Cannot pick on this page. Reload the page and try again.';
+    $('form-error').classList.remove('hidden');
+    return;
+  }
+  await browser.storage.local.remove(RESULT_KEY);
+  await browser.storage.local.set({ [DRAFT_KEY]: draft });
+  window.close();
+}
+
+/** Re-open the rule form from a saved draft, applying a picked selector if any. */
+async function restorePickerDraft() {
+  const stored = await browser.storage.local.get([DRAFT_KEY, RESULT_KEY]);
+  const draft = stored[DRAFT_KEY];
+  const result = stored[RESULT_KEY];
+  if (!draft) return false;
+  await browser.storage.local.remove([DRAFT_KEY, RESULT_KEY]);
+  if (Date.now() - draft.savedAt > DRAFT_MAX_AGE_MS) return false;
+
+  const all = await getAllRules();
+  const profile = ((all[draft.pattern] || {}).profiles || []).find(p => p.id === draft.profileId);
+  if (!profile) return false;
+
+  const picked = result && result.savedAt >= draft.savedAt ? result : null;
+  const existing = (profile.rules || []).find(r => r.id === draft.ruleId) || null;
+  openRuleForm(draft.pattern, draft.profileId, existing);
+  $('field-selector').value = picked ? picked.selector : draft.selector;
+  const type = picked ? picked.type : draft.type;
+  $('field-type').value = type;
+  updateValueField(type);
+  if (type === 'checkbox') $('checkbox-value').checked = draft.value === true || draft.value === 'true';
+  else $('field-value-text').value = draft.type === 'checkbox' ? '' : String(draft.value);
+  $('field-label').value = draft.label;
+  return true;
+}
+
 function closeRuleForm() {
   $('rule-form').classList.add('hidden');
 }
@@ -433,6 +494,10 @@ async function init() {
   $('field-type').addEventListener('change', e => updateValueField(e.target.value));
   $('btn-save-rule').addEventListener('click', saveRuleForm);
   $('btn-cancel-rule').addEventListener('click', closeRuleForm);
+  $('btn-pick').addEventListener('click', startPicker);
+
+  // Returning from the element picker: re-open the rule form being edited
+  await restorePickerDraft();
 
   // Options page
   $('link-options').addEventListener('click', e => {

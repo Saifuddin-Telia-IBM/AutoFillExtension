@@ -64,7 +64,10 @@
     <input type="hidden" id="edit-pattern" />
 
     <label for="field-selector">CSS Selector <span class="required">*</span></label>
-    <input type="text" id="field-selector" placeholder='e.g. #password or input[name="ssid"]' />
+    <div class="input-row">
+      <input type="text" id="field-selector" placeholder='e.g. #password or input[name="ssid"]' />
+      <button type="button" id="btn-pick" class="btn-primary" title="Click the field on the page to pick its selector">⌖ Pick</button>
+    </div>
 
     <label for="field-type">Field Type</label>
     <select id="field-type">

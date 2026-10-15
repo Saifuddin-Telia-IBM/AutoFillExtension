@@ -249,6 +249,10 @@ input[type="text"], select {
 }
 input[type="text"]:focus, select:focus { outline: none; border-color: #3b82f6; }
 
+.input-row { display: flex; gap: 6px; }
+.input-row input { flex: 1; min-width: 0; }
+.input-row button { white-space: nowrap; }
+
 .checkbox-row { display: flex; align-items: center; gap: 6px; padding: 4px 0; }
 .checkbox-row input[type="checkbox"] { width: auto; }
 .checkbox-row label { margin: 0; text-transform: none; letter-spacing: 0; font-size: 12px; }

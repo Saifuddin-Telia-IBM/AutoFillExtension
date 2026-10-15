@@ -26,7 +26,8 @@
       ],
       "js": [
         "shared/browser-polyfill.js",
-        "content/autofill.js"
+        "content/autofill.js",
+        "content/picker.js"
       ],
       "run_at": "document_idle"
     }
