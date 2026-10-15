@@ -15,6 +15,8 @@ Automatically fill form fields — text inputs, checkboxes, radio buttons, and d
 - ✅ Works with **React, Vue, Angular** — synthetic events dispatched
 - ✅ Handles **dynamically rendered fields** (MutationObserver with 3s window)
 - ✅ **URL pattern matching** — exact, wildcard prefix (`http://host/*`), or hostname-only
+- ✅ **Multiple profiles per URL** — define independent fill-sets and pick which to apply at fill-time
+- ✅ **URL aliases** — map several URL patterns to the same profiles without duplicating rules
 - ✅ **Enable/disable** individual rules without deleting them
 - ✅ **Export / Import** rules as JSON (for backup or sharing)
 
@@ -160,14 +162,25 @@ Run `npm run package:chrome` and upload `dist/packages/autofill-chrome-<version>
    - **Label** — optional friendly name
 6. Click **Save**. The rule takes effect immediately on the next page load.
 
-### Renaming a profile
+### Profiles
 
-Each URL pattern can hold several named profiles. To rename one:
+Each URL pattern can hold several named **profiles** — independent sets of fill rules. When the extension detects matching fields on a page, it shows a toast listing all available profiles; click the one you want to apply. This lets you store e.g. "Work account" and "Personal account" under the same URL.
 
+To rename a profile:
 - **Popup:** click the **✎** button in the profile's header (or double-click the name).
 - **Options page:** click **✎ Rename** on the profile (or double-click the name).
 
 Type the new name, then press **Enter** or click away to save. Press **Esc** to cancel. An empty name keeps the old one.
+
+### URL aliases — same profiles, multiple URLs
+
+If the same fill rules should apply to more than one URL (e.g. a router accessible at both `http://192.168.1.1/` and `http://10.0.0.1/`), add the extra URLs as **aliases** instead of duplicating the whole pattern:
+
+1. Open the **Options page**.
+2. On the primary pattern card, click **+ Add URL**.
+3. Enter the additional URL pattern.
+
+Aliases appear indented below the primary URL. The same profiles and rules trigger on any of them. Remove an alias with the ✕ button next to it.
 
 ### Finding a CSS selector
 
@@ -190,8 +203,10 @@ input[name="mode"][value="advanced"]  → the specific radio with value="advance
 Click **"Manage all rules →"** in the popup, or go to `about:addons` → AutoFill → **Preferences** (Firefox) / `chrome://extensions` → AutoFill → **Details** → **Extension options** (Chrome).
 
 The Options page lets you:
-- View all URL patterns and their rules
+- View all URL patterns, their profiles, and their rules
 - Add, edit, toggle, and delete rules
+- Add and remove **profiles** per URL pattern
+- Add and remove **URL aliases** per pattern (same profiles, additional URLs)
 - Rename profiles
 - Delete an entire URL pattern
 - **Export** all rules to a JSON file
@@ -201,30 +216,43 @@ The Options page lets you:
 
 ## Data Model
 
-Rules are stored in `browser.storage.local` under the key `autofillRules`:
+Rules are stored in `browser.storage.local` under the key `autofillRules`.
+
+Each top-level key is a **URL pattern**. Its value holds an optional `aliases` array (additional URL patterns that use the same profiles) and a `profiles` array (one or more named fill-sets).
 
 ```json
 {
-  "http://192.168.1.1/setup": [
-    {
-      "id": "uuid",
-      "enabled": true,
-      "selector": "#admin-password",
-      "type": "text",
-      "value": "mypassword",
-      "label": "Admin password"
-    },
-    {
-      "id": "uuid2",
-      "enabled": true,
-      "selector": "input[name='remember']",
-      "type": "checkbox",
-      "value": true,
-      "label": "Remember me"
-    }
-  ]
+  "http://192.168.1.1/setup": {
+    "aliases": ["http://10.0.0.1/setup"],
+    "profiles": [
+      {
+        "id": "profile-uuid",
+        "name": "Admin",
+        "rules": [
+          {
+            "id": "rule-uuid",
+            "enabled": true,
+            "selector": "#admin-password",
+            "type": "text",
+            "value": "mypassword",
+            "label": "Admin password"
+          },
+          {
+            "id": "rule-uuid2",
+            "enabled": true,
+            "selector": "input[name='remember']",
+            "type": "checkbox",
+            "value": true,
+            "label": "Remember me"
+          }
+        ]
+      }
+    ]
+  }
 }
 ```
+
+Legacy data (a flat array of rules instead of the profile-based shape) is automatically migrated to a single "Default" profile on first load.
 
 ---
 

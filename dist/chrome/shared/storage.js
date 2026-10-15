@@ -4,6 +4,7 @@
  * Data shape stored under key "autofillRules":
  * {
  *   "<urlPattern>": {
+ *     "aliases": ["<extra pattern>", ...],   // optional — additional URL patterns
  *     "profiles": [
  *       {
  *         "id": "uuid",
@@ -84,7 +85,7 @@ function patternMatches(urlPattern, url) {
  */
 function migratePatternValue(value) {
   if (!value) return { profiles: [] };
-  // Already migrated
+  // Already migrated (aliases field is optional — just ensure profiles exists)
   if (value.profiles) return value;
   // Legacy: value is an array of rules
   if (Array.isArray(value)) {
@@ -133,7 +134,8 @@ async function getProfilesForUrl(url) {
   const all = await getAllRules();
   const result = [];
   for (const [pattern, data] of Object.entries(all)) {
-    if (!patternMatches(pattern, url)) continue;
+    const allPatterns = [pattern, ...(data.aliases || [])];
+    if (!allPatterns.some(p => patternMatches(p, url))) continue;
     for (const profile of (data.profiles || [])) {
       const enabledRules = (profile.rules || []).filter(r => r.enabled);
       if (enabledRules.length > 0) {
@@ -158,7 +160,34 @@ async function getPatternData(urlPattern) {
 /** Return matching pattern keys for a URL. */
 async function getMatchingPatterns(url) {
   const all = await getAllRules();
-  return Object.keys(all).filter(p => patternMatches(p, url));
+  return Object.keys(all).filter(p => {
+    const data = all[p];
+    const allPatterns = [p, ...(data.aliases || [])];
+    return allPatterns.some(pat => patternMatches(pat, url));
+  });
+}
+
+// --- Pattern-level ---
+
+// --- Alias-level ---
+
+/** Add an alias URL pattern to an existing pattern entry. */
+async function addAlias(urlPattern, alias) {
+  const all = await getAllRules();
+  if (!all[urlPattern]) return;
+  if (!all[urlPattern].aliases) all[urlPattern].aliases = [];
+  if (!all[urlPattern].aliases.includes(alias)) {
+    all[urlPattern].aliases.push(alias);
+    await saveRules(all);
+  }
+}
+
+/** Remove an alias URL pattern from an existing pattern entry. */
+async function removeAlias(urlPattern, alias) {
+  const all = await getAllRules();
+  if (!all[urlPattern] || !all[urlPattern].aliases) return;
+  all[urlPattern].aliases = all[urlPattern].aliases.filter(a => a !== alias);
+  await saveRules(all);
 }
 
 // --- Pattern-level ---

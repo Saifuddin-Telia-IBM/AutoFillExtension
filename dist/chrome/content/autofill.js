@@ -25,11 +25,36 @@
   let toastTimer  = null;
 
   // -------------------------------------------------------------------------
-  // Field fill logic (unchanged from v1)
+  // Field fill logic
   // -------------------------------------------------------------------------
 
   function dispatch(el, eventName) {
-    el.dispatchEvent(new Event(eventName, { bubbles: true }));
+    el.dispatchEvent(new Event(eventName, { bubbles: true, composed: true }));
+  }
+
+  /**
+   * Set a text value on a native <input> or <textarea> using the native
+   * HTMLInputElement/HTMLTextAreaElement setter so that Angular's zone and
+   * React's synthetic event system both detect the change, even when the
+   * framework has overridden the element's own `.value` property descriptor.
+   */
+  function setNativeValue(el, value) {
+    const tag = el.tagName.toLowerCase();
+    // Custom elements (web components): set .value directly on the host.
+    // The native prototype setter only applies to real <input>/<textarea>.
+    if (tag !== 'input' && tag !== 'textarea') {
+      el.value = value;
+      return;
+    }
+    const proto = tag === 'textarea'
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
+    const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
+    if (descriptor && descriptor.set) {
+      descriptor.set.call(el, value);
+    } else {
+      el.value = value;
+    }
   }
 
   /**
@@ -128,15 +153,18 @@
         return true;
       }
       default: {
-        if (el.value !== String(rule.value)) {
-          el.value = String(rule.value);
-          dispatch(el, 'input');
-          dispatch(el, 'change');
-          // Notify the host element so Angular/React/Vue framework bindings update
-          if (el !== host) {
-            dispatch(host, 'input');
-            dispatch(host, 'change');
-          }
+        const strVal = String(rule.value);
+        // Use the native setter so Angular/React zone detection fires even when
+        // the framework has wrapped the element's own .value descriptor.
+        setNativeValue(el, strVal);
+        // composed:true lets the event cross shadow boundaries so the host
+        // web component and its Angular ControlValueAccessor both see it.
+        dispatch(el, 'input');
+        dispatch(el, 'change');
+        // Also fire directly on the host for frameworks that listen there.
+        if (el !== host) {
+          dispatch(host, 'input');
+          dispatch(host, 'change');
         }
         return true;
       }

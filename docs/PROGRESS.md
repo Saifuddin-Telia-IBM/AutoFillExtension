@@ -40,3 +40,6 @@ If continuing in a new chat session:
 | Initial | Planning documents created |
 | Session 1 | All 7 tasks completed — extension fully implemented |
 | Session 2 | Added Chrome support, `scripts/build.js`, and `dist/firefox` / `dist/chrome` outputs; README and docs updated |
+| Session 3 | Upgraded storage to v2 profile-aware shape (`urlPattern → { profiles[] }`); added multi-profile toast UI, shadow DOM support, persistent MutationObserver; legacy flat-array migration |
+| Session 4 | Added URL aliases (`aliases[]` on pattern entries): same profiles trigger on multiple URLs without duplicating data; `addAlias`/`removeAlias` in `shared/storage.js`; "+ Add URL" / ✕ UI in options page; all docs updated |
+| Session 5 | Bug fix: `background.js` inlined `getProfilesForUrl` was not checking `aliases`, so alias URLs never matched; fixed by mirroring the `allPatterns` check from `shared/storage.js`. Also improved web-component fill reliability: `setNativeValue()` uses native `HTMLInputElement.prototype` setter to bypass Angular's overridden descriptor; events now use `composed: true` to cross shadow DOM boundaries (Carbon Design System / `cds-*` components). |

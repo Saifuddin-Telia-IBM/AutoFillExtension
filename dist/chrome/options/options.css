@@ -100,6 +100,36 @@ header h1 { font-size: 20px; font-weight: 700; color: #1e3a5f; }
 }
 .pattern-actions { display: flex; gap: 6px; align-items: center; }
 
+/* Alias list — shown below the primary URL row */
+.alias-list {
+  padding: 6px 16px 8px;
+  background: #f7f8fa;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.alias-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.alias-row::before {
+  content: '↳';
+  font-size: 12px;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+.alias-url {
+  flex: 1;
+  font-family: monospace;
+  font-size: 12px;
+  color: #57606a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Rules table */
 .rules-table {
   width: 100%;

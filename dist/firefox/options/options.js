@@ -34,12 +34,14 @@ async function renderAll() {
   emptyGlobal.classList.add('hidden');
 
   for (const pattern of patterns) {
-    const data = all[pattern];
-    container.appendChild(buildPatternCard(pattern, data.profiles || []));
+    container.appendChild(buildPatternCard(pattern, all[pattern]));
   }
 }
 
-function buildPatternCard(pattern, profiles) {
+function buildPatternCard(pattern, data) {
+  const profiles = data.profiles || [];
+  const aliases  = data.aliases  || [];
+
   const card = document.createElement('div');
   card.className = 'pattern-card';
   card.dataset.pattern = pattern;
@@ -55,6 +57,19 @@ function buildPatternCard(pattern, profiles) {
 
   const patActions = document.createElement('div');
   patActions.className = 'pattern-actions';
+
+  const addAliasBtn = document.createElement('button');
+  addAliasBtn.className = 'btn-ghost btn-sm';
+  addAliasBtn.textContent = '+ Add URL';
+  addAliasBtn.title = 'Add another URL pattern that uses the same profiles';
+  addAliasBtn.addEventListener('click', async () => {
+    const alias = prompt('Additional URL pattern (uses the same profiles):', 'https://');
+    if (!alias || !alias.trim()) return;
+    await addAlias(pattern, alias.trim());
+    await renderAll();
+    const card2 = document.querySelector(`.pattern-card[data-pattern="${CSS.escape(pattern)}"]`);
+    if (card2) card2.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
 
   const addProfileBtn = document.createElement('button');
   addProfileBtn.className = 'btn-ghost btn-sm';
@@ -77,11 +92,43 @@ function buildPatternCard(pattern, profiles) {
     await renderAll();
   });
 
+  patActions.appendChild(addAliasBtn);
   patActions.appendChild(addProfileBtn);
   patActions.appendChild(deletePatternBtn);
   header.appendChild(urlSpan);
   header.appendChild(patActions);
   card.appendChild(header);
+
+  // Alias list (shown below the primary URL if any exist)
+  if (aliases.length > 0) {
+    const aliasList = document.createElement('div');
+    aliasList.className = 'alias-list';
+
+    for (const alias of aliases) {
+      const row = document.createElement('div');
+      row.className = 'alias-row';
+
+      const aliasLabel = document.createElement('span');
+      aliasLabel.className = 'alias-url';
+      aliasLabel.textContent = alias;
+      aliasLabel.title = alias;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'btn-danger-icon';
+      removeBtn.title = 'Remove this URL alias';
+      removeBtn.textContent = '✕';
+      removeBtn.addEventListener('click', async () => {
+        if (!confirm(`Remove alias "${alias}"?`)) return;
+        await removeAlias(pattern, alias);
+        await renderAll();
+      });
+
+      row.appendChild(aliasLabel);
+      row.appendChild(removeBtn);
+      aliasList.appendChild(row);
+    }
+    card.appendChild(aliasList);
+  }
 
   if (profiles.length === 0) {
     const empty = document.createElement('div');

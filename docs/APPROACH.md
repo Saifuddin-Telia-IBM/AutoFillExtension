@@ -20,10 +20,11 @@ An **options page** provides the same management in a larger, more comfortable s
 
 Rules are stored keyed by a URL pattern. The extension supports:
 - **Exact match** — e.g. `http://192.168.1.1/setup`
-- **Prefix match** — e.g. `http://192.168.1.1/*`
-- **Hostname match** — e.g. `*.example.com`
+- **Prefix/wildcard match** — e.g. `http://192.168.1.1/*`
+- **Hostname match** — a bare hostname matches any path on that host
+- **SPA hash routes** — patterns containing `#` are matched against the full URL including hash
 
-This covers the primary use case (same admin page every restart) while allowing flexibility.
+Each pattern entry may also carry an **`aliases` array** — additional URL patterns that share the same profiles without duplicating any data. This covers cases where the same page is reachable at multiple addresses (e.g. a router at both `192.168.1.1` and `10.0.0.1`).
 
 ### Field Identification
 
@@ -52,9 +53,19 @@ Autofill fires:
 
 Events are dispatched so that React/Vue/Angular reactive frameworks pick up the change.
 
+### Profiles
+
+Each URL pattern can hold multiple named **profiles** — independent sets of fill rules. When the extension detects matching fields on a page, it surfaces a small toast listing every available profile. The user clicks the profile they want to apply. This supports switching between different sets of values for the same page (e.g. different accounts, different configurations) without editing rules.
+
 ### Storage
 
-All rules are stored in `browser.storage.local` (no server, no sync unless user opts into `storage.sync`). Data is structured as a map from URL pattern to an array of field rules.
+All rules are stored in `browser.storage.local` (no server, no sync unless user opts into `storage.sync`). Data is structured as a map from URL pattern to a pattern entry:
+
+```
+urlPattern → { aliases?: string[], profiles: [{ id, name, rules: [...] }] }
+```
+
+Legacy data (a flat array per URL key) is automatically migrated to a single "Default" profile on first load.
 
 ### Privacy
 

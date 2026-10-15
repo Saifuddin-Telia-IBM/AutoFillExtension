@@ -54,8 +54,9 @@ async function getProfilesForUrl(url) {
   const raw = result[STORAGE_KEY] || {};
   const profiles = [];
   for (const [pattern, value] of Object.entries(raw)) {
-    if (!patternMatches(pattern, url)) continue;
     const data = migrateValue(value);
+    const allPatterns = [pattern, ...(data.aliases || [])];
+    if (!allPatterns.some(p => patternMatches(p, url))) continue;
     for (const profile of (data.profiles || [])) {
       const enabledRules = (profile.rules || []).filter(r => r.enabled);
       if (enabledRules.length > 0) {

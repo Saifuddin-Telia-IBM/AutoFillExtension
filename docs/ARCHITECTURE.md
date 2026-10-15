@@ -69,39 +69,54 @@ AutoFillExtension/
 - Firefox zip → install via `about:addons` → **Install Add-on From File…** (with `xpinstall.signatures.required = false` on Developer Edition/Nightly) or submit to AMO; Chrome zip → upload to the Chrome Web Store
 
 ### `background/background.js`
-- Listens for messages from popup and options page
-- Routes storage read/write operations
-- Handles the `GET_RULES_FOR_URL` message (used by content script on load)
+- Listens for messages from the content script
+- Handles the `GET_PROFILES_FOR_URL` message: reads storage, matches the URL against all pattern keys **and their `aliases`**, and returns matching profiles
 - Thin coordinator — no business logic
+- **Important:** because Chrome service workers cannot load external scripts, `background.js` inlines its own copies of `stripHash`, `patternMatches`, `migrateValue`, and `getProfilesForUrl`. These must be kept in sync with `shared/storage.js` whenever the matching logic or data shape changes — the aliases check in particular must appear in both places.
 
 ### `content/autofill.js`
 - Injected into every page at `document_idle`
-- On load: sends `GET_RULES_FOR_URL` with `window.location.href` to background
-- Background returns matching rules
-- Content script iterates rules and fills each field
+- On load: sends `GET_PROFILES_FOR_URL` with `window.location.href` to background
+- Background returns all matching profiles (each with their enabled rules)
+- Content script shows a **toast** listing available profiles; user clicks one to fill
 - **Phase 1 — initial observer**: `MutationObserver` for up to 3 seconds after page load to catch late-rendered fields (SPAs, lazy content)
-- **Phase 2 — persistent observer**: always-on `MutationObserver` that watches for any new nodes added to the DOM at any time; when a modal or dialog is injected (even minutes after load), it immediately fills any matching fields inside it
-- Dispatches synthetic `input` and `change` events so frameworks react
+- **Phase 2 — persistent observer**: always-on `MutationObserver` that re-shows the toast when new nodes (modals, dialogs) are injected
+- Uses `setNativeValue()` (native `HTMLInputElement.prototype.value` setter) to bypass framework-overridden `.value` descriptors (Angular, React)
+- Dispatches synthetic events with `{ bubbles: true, composed: true }` so they cross shadow DOM boundaries and reach host-element listeners (Carbon Design System, other web components)
+- Pierces shadow DOM to fill web components
 
 ### `shared/storage.js`
-- `getRulesForUrl(url)` — returns matching rules array for a given URL
-- `getAllRules()` — returns entire rules map
+- `getAllRules()` — returns entire rules map (migrates legacy flat-array entries on first load)
 - `saveRules(rules)` — persists entire rules map
-- `addRule(urlPattern, fieldRule)` — adds a single rule
-- `deleteRule(urlPattern, ruleId)` — removes a rule by id
-- `updateRule(urlPattern, ruleId, patch)` — partial update
+- `getProfilesForUrl(url)` — returns all matching profiles (with only their enabled rules) across all matching patterns and their aliases
+- `getMatchingPatterns(url)` — returns all pattern keys whose primary URL or aliases match the given URL
+- `ensurePattern(urlPattern)` — creates a pattern key if absent
+- `deletePattern(urlPattern)` — removes a pattern and all its profiles
+- `addProfile(urlPattern, name)` — adds a named profile, returns new id
+- `renameProfile(urlPattern, profileId, newName)`
+- `deleteProfile(urlPattern, profileId)`
+- `addAlias(urlPattern, alias)` — adds an extra URL that shares the pattern's profiles
+- `removeAlias(urlPattern, alias)` — removes an alias URL
+- `addRule(urlPattern, profileId, fieldRule)` — adds a rule to a specific profile, returns new id
+- `updateRule(urlPattern, profileId, ruleId, patch)` — partial update
+- `deleteRule(urlPattern, profileId, ruleId)`
+- `importRules(rules)` — replaces all rules
 
 ### `popup/popup.js`
 - Shows current page URL
-- Lists existing rules for the current page
+- Lists existing profiles and their rules for the current page
 - Provides inline add/edit/delete/toggle per rule
-- Renames a profile via the ✎ button or double-click on its name (calls `renameProfile` in `shared/storage.js`)
+- Add/delete profiles per pattern
+- Rename a profile via the ✎ button or double-click on its name
+- "Fill now" button sends a `FILL_PROFILE` message to the content script
 - Communicates with storage via direct `browser.storage.local` calls
 
 ### `options/options.js`
 - Full-page rule manager
-- Shows all URL patterns and their rules
-- Renames a profile via the "✎ Rename" button or double-click on its name
+- Shows all URL patterns, their aliases, their profiles, and their rules
+- Add/remove aliases per pattern (+ Add URL / ✕)
+- Add/delete/rename profiles per pattern
+- Add/edit/toggle/delete rules per profile
 - Import / Export rules as JSON
 
 ---
@@ -112,64 +127,106 @@ AutoFillExtension/
 // browser.storage.local key: "autofillRules"
 {
   "autofillRules": {
-    "http://192.168.1.1/setup": [
-      {
-        "id": "rule-uuid-1",
-        "enabled": true,
-        "selector": "#username",
-        "type": "text",         // "text" | "checkbox" | "radio" | "select"
-        "value": "admin"
-      },
-      {
-        "id": "rule-uuid-2",
-        "enabled": true,
-        "selector": "input[name='remember']",
-        "type": "checkbox",
-        "value": true
-      },
-      {
-        "id": "rule-uuid-3",
-        "enabled": true,
-        "selector": "input[name='mode'][value='advanced']",
-        "type": "radio",
-        "value": "advanced"
-      }
-    ],
-    "https://example.com/config*": [
-      {
-        "id": "rule-uuid-4",
-        "enabled": false,
-        "selector": "#theme",
-        "type": "select",
-        "value": "dark"
-      }
-    ]
+    "http://192.168.1.1/setup": {
+      "aliases": ["http://10.0.0.1/setup"],   // optional — extra URLs sharing these profiles
+      "profiles": [
+        {
+          "id": "profile-uuid-1",
+          "name": "Admin",
+          "rules": [
+            {
+              "id": "rule-uuid-1",
+              "enabled": true,
+              "selector": "#username",
+              "type": "text",       // "text" | "checkbox" | "radio" | "select"
+              "value": "admin",
+              "label": "Username"
+            },
+            {
+              "id": "rule-uuid-2",
+              "enabled": true,
+              "selector": "input[name='remember']",
+              "type": "checkbox",
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "profile-uuid-2",
+          "name": "Guest",
+          "rules": [
+            {
+              "id": "rule-uuid-3",
+              "enabled": true,
+              "selector": "#username",
+              "type": "text",
+              "value": "guest"
+            }
+          ]
+        }
+      ]
+    },
+    "https://example.com/config*": {
+      "profiles": [
+        {
+          "id": "profile-uuid-3",
+          "name": "Default",
+          "rules": [
+            {
+              "id": "rule-uuid-4",
+              "enabled": false,
+              "selector": "#theme",
+              "type": "select",
+              "value": "dark"
+            }
+          ]
+        }
+      ]
+    }
   }
 }
 ```
+
+Legacy entries where the value is a flat array of rules (pre-v2 format) are silently migrated to a single "Default" profile on first load.
+
+### Pattern Entry Fields
+
+| Field | Type | Description |
+|---|---|---|
+| `aliases` | string[] _(optional)_ | Additional URL patterns that share this entry's profiles |
+| `profiles` | Profile[] | One or more named fill-sets |
+
+### Profile Fields
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | UUID, stable key for updates/deletes |
+| `name` | string | Display name shown in the toast and UI |
+| `rules` | Rule[] | Ordered list of field-fill rules |
 
 ### Rule Fields
 
 | Field | Type | Description |
 |---|---|---|
-| `id` | string | UUID, used as stable key for updates/deletes |
+| `id` | string | UUID, stable key for updates/deletes |
 | `enabled` | boolean | If false, rule is skipped during autofill |
 | `selector` | string | CSS selector to find the element |
-| `type` | string | Hint for fill strategy: `text`, `checkbox`, `radio`, `select` |
-| `value` | string \| boolean | Value to fill. Checkbox: `true`/`false`. Radio: the `.value` of the target radio. Text/select: the string value |
-| `label` _(optional)_ | string | Human-readable description shown in UI |
+| `type` | string | Fill strategy hint: `text`, `checkbox`, `radio`, `select` |
+| `value` | string \| boolean | Value to fill. Checkbox: `true`/`false`. Radio: the `.value` of the target radio. Text/select: string |
+| `label` _(optional)_ | string | Human-readable description shown in the UI |
 
 ---
 
 ## URL Pattern Matching
 
-Matching is done in the content script and storage helper:
+Matching is done in `shared/storage.js` (`patternMatches`). For each stored pattern entry, both the primary key **and every alias** are tested:
 
-1. **Exact match** — stored key equals current URL (ignoring hash)
-2. **Glob/wildcard** — key ends with `*`, prefix is matched
-3. **Hostname-only** — key is just a hostname, matches any path on that host
+1. **Exact match** — pattern equals current URL (ignoring hash)
+2. **Glob/wildcard** — pattern ends with `*`, current URL must start with the prefix
+3. **Hostname-only** — pattern is a bare hostname (no path), matches any path on that host
+4. **SPA hash routes** — when the pattern contains `#`, the full URL (including hash) is compared
 
-Matching priority: exact > glob > hostname. First match wins (all matching rules are collected).
+All matching entries contribute their profiles; there is no first-match-only cutoff.
 
 ---
 
@@ -177,10 +234,17 @@ Matching priority: exact > glob > hostname. First match wins (all matching rules
 
 ```
 Content → Background:
-  { type: "GET_RULES_FOR_URL", url: string }
+  { type: "GET_PROFILES_FOR_URL", url: string }
 
 Background → Content (response):
-  { rules: FieldRule[] }   // may be empty array
+  { profiles: Profile[] }   // may be empty array
+                            // each Profile: { id, name, rules (enabled only), patternKey }
+
+Content → Background (fill request from popup):
+  { type: "FILL_PROFILE", profileId: string }
+
+Content → Background (re-show toast):
+  { type: "SHOW_TOAST" }
 ```
 
 The popup and options page access `browser.storage.local` directly (they run in the extension context, not the page context).
@@ -195,18 +259,24 @@ Page Load
    ▼
 content/autofill.js injected
    │
-   ├─► Send GET_RULES_FOR_URL → background.js
+   ├─► Send GET_PROFILES_FOR_URL → background.js
    │         │
-   │         └─► getRulesForUrl(url) → return matching rules
+   │         └─► getProfilesForUrl(url) → return matching profiles
    │
    ▼
-Iterate rules
+Any profiles with matching DOM selectors?
    │
-   ├─► type=text/textarea/select  → el.value = value; dispatch input+change
-   ├─► type=checkbox              → el.checked = value; dispatch change
-   └─► type=radio                 → el.checked = true; dispatch change
-         │
-         └─► MutationObserver (3s timeout) for any late-rendered elements
+   ├── Yes → Show toast listing profile names
+   │              │
+   │              └─► User clicks profile button → fillProfile(profile)
+   │                        │
+   │                        ├─► type=text/textarea/select → el.value = value; dispatch input+change
+   │                        ├─► type=checkbox             → el.checked = value; dispatch change
+   │                        └─► type=radio                → el.checked = true; dispatch change
+   │
+   ├── No (fields not in DOM yet) → poll every 200ms for up to 3s, then show toast
+   │
+   └─► Persistent MutationObserver — re-shows toast when new nodes (modals) are added
 ```
 
 ---
