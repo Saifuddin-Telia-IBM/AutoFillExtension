@@ -104,6 +104,12 @@
     }
     // Container of radio buttons: fill logic picks the radio by value
     if (el.querySelector('input[type="radio"]')) return 'radio';
+    // Web component host: inspect its shadow root
+    if (el.shadowRoot) {
+      if (el.shadowRoot.querySelector('input[type="checkbox"]')) return 'checkbox';
+      if (el.shadowRoot.querySelector('input[type="radio"]'))    return 'radio';
+      if (el.shadowRoot.querySelector('select'))                 return 'select';
+    }
     return 'text';
   }
 
@@ -257,6 +263,19 @@
       // A click on a <label> almost always means its field
       if (el.tagName === 'LABEL' && el.control) el = el.control;
       if (!st.stackEls.includes(el)) st.stackEls.unshift(el);
+      // If the clicked element is a web component, add its shadow input(s) to
+      // the stack so the user can pick the actual native <input> directly.
+      for (const node of Array.from(st.stackEls)) {
+        if (node.shadowRoot) {
+          const shadowInputs = Array.from(node.shadowRoot.querySelectorAll(
+            'input, select, textarea'
+          ));
+          // Insert shadow inputs right after their host in the stack
+          const idx = st.stackEls.indexOf(node);
+          st.stackEls.splice(idx + 1, 0, ...shadowInputs);
+        }
+      }
+      st.stackEls = st.stackEls.slice(0, 16);
 
       ui.stack.textContent = '';
       st.stackEls.forEach((n, i) => {
@@ -349,7 +368,13 @@
     });
     $('down').addEventListener('click', () => {
       if (!st.current) return;
+      // Check shadow root first (web components), then light DOM children
+      const shadowChild = st.current.shadowRoot && st.current.shadowRoot.querySelector(
+        'input:not([type="checkbox"]):not([type="radio"]):not([type="submit"])' +
+        ':not([type="button"]):not([type="reset"]), select, textarea'
+      );
       const next = st.childStack.pop()
+        || shadowChild
         || st.current.querySelector('input, select, textarea')
         || st.current.firstElementChild;
       if (next) setCurrent(next);

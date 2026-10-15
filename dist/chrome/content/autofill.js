@@ -32,6 +32,33 @@
     el.dispatchEvent(new Event(eventName, { bubbles: true }));
   }
 
+  /**
+   * If `host` is a web component (has a shadowRoot), find the native input
+   * inside it that best matches the requested field type.  Falls back to `host`
+   * itself when no shadow root exists (normal elements) or nothing is found.
+   *
+   * We query by type rather than just taking [0] so that a component like
+   * <cds-password-input> whose shadow contains both an <input type="password">
+   * and a toggle <button> doesn't accidentally return the wrong element.
+   */
+  function resolveShadowInput(host, fieldType) {
+    const root = host.shadowRoot;
+    if (!root) return host;
+    switch (fieldType) {
+      case 'checkbox': return root.querySelector('input[type="checkbox"]') || host;
+      case 'radio':    return root.querySelector('input[type="radio"]')    || host;
+      case 'select':   return root.querySelector('select')                  || host;
+      default: {
+        // For text/password/email/number/etc: prefer a non-checkbox, non-radio,
+        // non-submit, non-button <input>, then fall back to <textarea>.
+        return root.querySelector(
+          'input:not([type="checkbox"]):not([type="radio"])' +
+          ':not([type="submit"]):not([type="button"]):not([type="reset"])'
+        ) || root.querySelector('textarea') || host;
+      }
+    }
+  }
+
   function inferType(el) {
     const tag = el.tagName.toLowerCase();
     if (tag === 'select') return 'select';
@@ -41,35 +68,63 @@
       if (t === 'checkbox') return 'checkbox';
       if (t === 'radio') return 'radio';
     }
+    // Web component host: inspect its shadow root to infer the real type
+    if (el.shadowRoot) {
+      if (el.shadowRoot.querySelector('input[type="checkbox"]')) return 'checkbox';
+      if (el.shadowRoot.querySelector('input[type="radio"]'))    return 'radio';
+      if (el.shadowRoot.querySelector('select'))                 return 'select';
+    }
     return 'text';
   }
 
   function fillField(rule) {
-    const el = document.querySelector(rule.selector);
-    if (!el) return false;
-    const type = rule.type || inferType(el);
+    const host = document.querySelector(rule.selector);
+    if (!host) return false;
+    const type = rule.type || inferType(host);
+
+    // Resolve the actual fillable element (pierces shadow DOM when needed)
+    const el = resolveShadowInput(host, type);
 
     switch (type) {
       case 'checkbox': {
         const checked = rule.value === true || rule.value === 'true';
-        if (el.checked !== checked) { el.checked = checked; dispatch(el, 'change'); }
+        if (el.checked !== checked) {
+          el.checked = checked;
+          dispatch(el, 'change');
+          // Also notify the host so framework listeners (Angular, etc.) fire
+          if (el !== host) dispatch(host, 'change');
+        }
         return true;
       }
       case 'radio': {
         if (el.type === 'radio') {
-          if (!el.checked) { el.checked = true; dispatch(el, 'change'); }
+          if (!el.checked) {
+            el.checked = true;
+            dispatch(el, 'change');
+            if (el !== host) dispatch(host, 'change');
+          }
           return true;
         }
-        for (const radio of (el.querySelectorAll ? el.querySelectorAll('input[type="radio"]') : [])) {
+        // Selector pointed at a container — search light DOM then shadow DOM
+        const scope = el.shadowRoot || el;
+        for (const radio of scope.querySelectorAll('input[type="radio"]')) {
           if (String(radio.value) === String(rule.value)) {
-            if (!radio.checked) { radio.checked = true; dispatch(radio, 'change'); }
+            if (!radio.checked) {
+              radio.checked = true;
+              dispatch(radio, 'change');
+              if (radio !== host) dispatch(host, 'change');
+            }
             return true;
           }
         }
         return false;
       }
       case 'select': {
-        if (el.value !== String(rule.value)) { el.value = String(rule.value); dispatch(el, 'change'); }
+        if (el.value !== String(rule.value)) {
+          el.value = String(rule.value);
+          dispatch(el, 'change');
+          if (el !== host) dispatch(host, 'change');
+        }
         return true;
       }
       default: {
@@ -77,6 +132,11 @@
           el.value = String(rule.value);
           dispatch(el, 'input');
           dispatch(el, 'change');
+          // Notify the host element so Angular/React/Vue framework bindings update
+          if (el !== host) {
+            dispatch(host, 'input');
+            dispatch(host, 'change');
+          }
         }
         return true;
       }
